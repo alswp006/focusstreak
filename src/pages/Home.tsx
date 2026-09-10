@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Top, Paragraph, Spacing, IconButton, Skeleton } from '@toss/tds-mobile';
+import { Top, Button, Paragraph, Spacing, Skeleton } from '@toss/tds-mobile';
 import { useNavigate } from 'react-router-dom';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { SummaryHero } from '../components/SummaryHero';
@@ -162,11 +162,11 @@ export default function Home() {
         <Top
           title={<Top.TitleParagraph>FocusStreak</Top.TitleParagraph>}
           right={
-            <IconButton
-              aria-label="설정"
-              name="iconSettingRegular"
-              onClick={() => navigate('/settings')}
-            />
+            // 아이콘 name="iconSettingRegular"는 TDS 아이콘 CDN에서 403("Wrong URL")을 받아
+            // 컴포넌트가 throw → 홈에서 console.error가 남았다(검수 반려 사유). 텍스트 버튼으로 대체.
+            <Button variant="weak" size="small" onClick={() => navigate('/settings')}>
+              설정
+            </Button>
           }
         />
       }
