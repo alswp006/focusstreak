@@ -32,9 +32,11 @@ export function mockTds() {
     FixedBottomCTA: ({ children, onClick, disabled, loading, ...props }: any) =>
       React.createElement("button", { onClick, disabled: disabled || loading || undefined, "data-loading": loading ? "true" : undefined, ...props }, children),
 
+    // 실제 ListRow는 children이 아니라 contents/left/right prop으로 내용을 받는다(.d.ts 검증)
+    // — 이전 children 전용 목은 contents/right를 렌더하지 않아 실사용 페이지에서 항상 빈 행이 됐다.
     ListRow: Object.assign(
-      ({ children, onClick, ...props }: any) =>
-        React.createElement("div", { onClick, role: "listitem", ...props }, children),
+      ({ children, contents, left, right, onClick, ...props }: any) =>
+        React.createElement("div", { onClick, role: "listitem", ...props }, left, contents ?? children, right),
       {
         Text: ({ children }: any) => React.createElement("span", null, children),
         Texts: ({ top, bottom, type }: any) =>
@@ -152,10 +154,12 @@ export function mockTds() {
       { Header: ({ children }: any) => React.createElement("div", null, children) },
     ),
 
-    Chip: ({ children, selected, onClick }: any) =>
+    // 실제 Chip은 그룹 컨테이너(div)이고, 개별 칩은 ChipItem(button)이다 — .d.ts 검증.
+    Chip: ({ children }: any) => React.createElement("div", { role: "group" }, children),
+    ChipItem: ({ children, selected, onClick, disabled }: any) =>
       React.createElement(
         "button",
-        { role: "button", "aria-pressed": selected, onClick },
+        { role: "button", "aria-pressed": selected, onClick, disabled },
         children,
       ),
 

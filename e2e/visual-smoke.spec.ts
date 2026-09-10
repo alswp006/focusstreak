@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { toDateKey } from "../src/lib/datetime";
 
 /**
  * 제네릭 구조 스모크 — 이 앱 지식 없이도 jsdom이 못 보는 렌더 버그를 잡는다:
@@ -13,14 +14,22 @@ import { test, expect, type Page } from "@playwright/test";
 const ROUTES: { path: string; name: string }[] = [
   { path: "/", name: "home" },
   { path: "/calendar", name: "calendar" },
+  { path: "/history", name: "history" },
   // { path: "/settings", name: "settings" },
 ];
 
 /** 데이터가 필요한 화면용 localStorage 시드(앱에 맞게 채워라). 앱 스크립트보다 먼저 실행된다. */
 async function seed(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    // window.localStorage.setItem("MY_STORAGE_KEY", JSON.stringify({ /* ... */ }));
-  });
+  const todayKey = toDateKey(Date.now());
+  await page.addInitScript((dateKey) => {
+    window.localStorage.setItem(
+      "fs:sessions:v1",
+      JSON.stringify([
+        { startedAt: dateKey, minutes: 42, tag: "공부" },
+        { startedAt: dateKey, minutes: 30, tag: "업무" },
+      ]),
+    );
+  }, todayKey);
 }
 
 // 토스 WebView 밖(일반 브라우저)에서만 나는 알려진 dev 에러 — 무시(실기기 WebView엔 안 남)
