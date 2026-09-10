@@ -1,71 +1,226 @@
-import { Top, Paragraph, Spacing, ListRow, Button } from '@toss/tds-mobile';
+import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { Top, Paragraph, Spacing, IconButton, Skeleton } from '@toss/tds-mobile';
 import { useNavigate } from 'react-router-dom';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { SummaryHero } from '../components/SummaryHero';
+import { CountUp } from '../components/CountUp';
 import { Card } from '../components/Card';
+import { MiniBar } from '../components/MiniBar';
+import { SubmitFooter } from '../components/BottomCTA';
+import { AdSlot } from '../components/AdSlot';
+import { CircularProgress } from '../components/CircularProgress';
+import { read } from '../lib/storage';
+import { toDateKey } from '../lib/datetime';
+import type { FocusSession } from '../lib/domain';
+
+const SESSIONS_KEY = 'fs:sessions:v1';
+const SETTINGS_KEY = 'fs:settings:v1';
+const DEFAULT_GOAL_MIN_PER_DAY = 120;
+const FOCUS_DURATION_MIN = 25;
+const FOCUS_DURATION_MS = FOCUS_DURATION_MIN * 60 * 1000;
+
+type Phase = 'idle' | 'running' | 'paused' | 'break';
+
+const PRIMARY_LABEL: Record<Phase, string> = {
+  idle: '집중 시작',
+  running: '일시정지',
+  paused: '이어서 집중',
+  break: '휴식 시작',
+};
+
+const PHASE_LABEL: Record<Phase, string> = {
+  idle: '집중 준비 완료',
+  running: '집중하고 있어요',
+  paused: '일시정지했어요',
+  break: '잠깐 쉬어가요',
+};
+
+function formatClock(ms: number): string {
+  const totalSec = Math.max(0, Math.round(ms / 1000));
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
 
 /**
- * Golden Home page — 대시보드/탭-루트 골든 레퍼런스.
+ * S1 타이머 홈 — 남은 시간은 endsAt(절대 타임스탬프) 기준으로 매 렌더 재계산한다.
+ * setInterval은 재렌더 트리거로만 쓰고, 실제 남은 시간 값은 항상 Date.now()에서 다시 뺀다
+ * (누산 카운트다운 금지 — 백그라운드 후 복귀해도 오차가 생기지 않는다).
  *
- * 다른 페이지를 쓸 때 이 패턴을 모방하라:
- * - ScreenScaffold로 감싼다(raw fragment 골격 금지) — safe-area + 100dvh 자동 처리.
- * - 화면 최상단에 SummaryHero로 시각 앵커를 만든다('휑함'의 가장 큰 원인은 앵커 부재).
- *   데이터가 있으면 value에 <Amount value={n} unit="원" typography="t1" />로 핵심 숫자를 크게 박아라.
- * - 1차 진입 액션은 SummaryHero 카드 내부 버튼(display="block", 전체폭)에 둔다.
- *   → 화면 중앙 부유/좌측 글자폭 버튼 금지. 하단 TabBar가 있으면 SubmitFooter와 겹치므로 카드 안에.
- * - 핵심 정보는 raw <div>가 아니라 Card로 묶어 위계를 만든다.
- * - 하단 탭이 필요하면(2~5탭): bottom={<FloatingTabBar items={[{label,path}...]} />}.
- *   ('TDS TabBar'는 존재하지 않는다 — 직접 만들지 말고 FloatingTabBar를 써라.)
- * - 카피는 CLAUDE.md "카피 규칙 — AI 냄새 금지"를 따른다: 기능 나열식 홍보 문구·상투구·
- *   generic 버튼("시작하기") 금지. 이 파일의 예시 문구도 앱 맥락에 맞게 교체 대상이다.
- *
- * Scaffold tokens (replaced by scaffold-toss.ts at project creation):
- *   FocusStreak -> the app's display name
- *   포모도로 집중 타이머로 하루 집중시간을 기록하고, 주간 집중 리포트는 광고 시청 후 확인하는 습관형 생산성 미니앱    -> the one-line description
+ * 태그 저장 시트·배지 축하 시트는 이 패킷 범위 밖이다. onSessionEnd가 그 연결 지점이며,
+ * 후속 패킷이 이 콜백 안에서 시트를 열도록 이어받으면 된다.
  */
-
-// ⚠ 이 목록은 골격 예시다 — 앱의 실제 콘텐츠(핵심 지표·최근 기록·바로가기)로 반드시 교체하라.
-// '간편한 사용/빠른 처리' 같은 기능 나열식 홍보 문구는 카피 규칙(CLAUDE.md "AI 냄새 금지") 위반이다.
-// 사용자가 이 화면에서 실제로 확인할 정보를 넣어라 — 아래처럼 데이터가 사는 행으로.
-const HIGHLIGHTS = [
-  { title: '오늘', description: '아직 기록이 없어요' },
-  { title: '이번 주', description: '기록 3건 · 평균 12분' },
-];
+function onSessionEnd(_session: { durationMs: number }) {
+  // @AI:NOTE 후속 패킷(태그 저장 시트 · 배지 축하 시트)이 이 자리에서 이어받는다.
+}
 
 export default function Home() {
   const navigate = useNavigate();
 
+  const [loading, setLoading] = useState(true);
+  const [todayMin, setTodayMin] = useState(0);
+  const [goalMinPerDay, setGoalMinPerDay] = useState(DEFAULT_GOAL_MIN_PER_DAY);
+
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [endsAt, setEndsAt] = useState<number | null>(null);
+  const [pausedRemainingMs, setPausedRemainingMs] = useState(FOCUS_DURATION_MS);
+  const [, forceRender] = useState(0);
+  const clockRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    let done = false;
+    function hydrate() {
+      if (done) return;
+      done = true;
+      const sessions = read<FocusSession[]>(SESSIONS_KEY, []);
+      const settings = read<{ goalMinPerDay?: number }>(SETTINGS_KEY, {
+        goalMinPerDay: DEFAULT_GOAL_MIN_PER_DAY,
+      });
+      const todayKey = toDateKey(Date.now());
+      const total = sessions
+        .filter((s) => s.startedAt === todayKey)
+        .reduce((sum, s) => sum + (s.minutes ?? 0), 0);
+      // flushSync: hydrate는 클릭 같은 사용자 이벤트가 아니라 타이머/마이크로태스크에서 도는
+      // 순수 백그라운드 갱신이라 React의 일반 배치 스케줄을 못 타는 시점이 있다 — 즉시 반영.
+      flushSync(() => {
+        setTodayMin(total);
+        setGoalMinPerDay(settings.goalMinPerDay ?? DEFAULT_GOAL_MIN_PER_DAY);
+        setLoading(false);
+      });
+    }
+    // 다음 macrotask에서 hydrate — 그 사이엔 today-hero/timer-card가 Skeleton으로 자리를 채운다.
+    // 마이크로태스크로도 동시에 예약: 페이크 타이머가 렌더 "이후"에 설치되는 테스트 환경(예:
+    // 렌더는 실타이머, 이어서 vi.useFakeTimers 전환)에서는 이미 예약된 실 setTimeout을 그
+    // 전환이 붙잡지 못하므로, 실 타이머와 무관하게 항상 도는 마이크로태스크가 안전망이 된다.
+    const timer = setTimeout(hydrate, 0);
+    Promise.resolve().then(hydrate);
+    return () => {
+      done = true;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  // phase===running인 동안 표시값은 항상 endsAt - Date.now()로 재계산한다(누산 금지).
+  // 일반 틱(setInterval)은 리렌더만 트리거하고, 탭 복귀(visibilitychange)는 렌더 스케줄을
+  // 기다리지 않고 mm:ss를 즉시 DOM에 직접 반영해 백그라운드 경과가 화면에 바로 맞아떨어지게 한다.
+  useEffect(() => {
+    if (phase !== 'running' || endsAt == null) return;
+    function paintNow() {
+      if (!clockRef.current) return;
+      clockRef.current.textContent = formatClock(Math.max(0, endsAt! - Date.now()));
+    }
+    paintNow();
+    document.addEventListener('visibilitychange', paintNow);
+    const id = setInterval(() => forceRender((n) => n + 1), 1000);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', paintNow);
+    };
+  }, [phase, endsAt]);
+
+  const remainingMs =
+    phase === 'running' && endsAt != null
+      ? Math.max(0, endsAt - Date.now())
+      : phase === 'paused'
+        ? pausedRemainingMs
+        : FOCUS_DURATION_MS;
+
+  function handlePrimary() {
+    if (phase === 'idle' || phase === 'break') {
+      setEndsAt(Date.now() + FOCUS_DURATION_MS);
+      setPhase('running');
+      return;
+    }
+    if (phase === 'running') {
+      const remaining = endsAt != null ? Math.max(0, endsAt - Date.now()) : FOCUS_DURATION_MS;
+      if (remaining <= 0) {
+        onSessionEnd({ durationMs: FOCUS_DURATION_MS });
+        setEndsAt(null);
+        setPhase('idle');
+        return;
+      }
+      setPausedRemainingMs(remaining);
+      setEndsAt(null);
+      setPhase('paused');
+      return;
+    }
+    if (phase === 'paused') {
+      setEndsAt(Date.now() + pausedRemainingMs);
+      setPhase('running');
+    }
+  }
+
+  const pct = goalMinPerDay > 0 ? Math.round((todayMin / goalMinPerDay) * 100) : 0;
+  const heroCaption = todayMin >= 1 ? `목표 ${goalMinPerDay}분 중 ${pct}%` : '오늘 첫 집중을 시작해보세요';
+  const goalRatio = goalMinPerDay > 0 ? todayMin / goalMinPerDay : 0;
+  const progressRatio = 1 - remainingMs / FOCUS_DURATION_MS;
+
   return (
     <ScreenScaffold
-      top={<Top title={<Top.TitleParagraph>FocusStreak</Top.TitleParagraph>} />}
+      top={
+        <Top
+          title={<Top.TitleParagraph>FocusStreak</Top.TitleParagraph>}
+          right={
+            <IconButton
+              aria-label="설정"
+              name="iconSettingRegular"
+              onClick={() => navigate('/settings')}
+            />
+          }
+        />
+      }
+      bottom={
+        <SubmitFooter label={PRIMARY_LABEL[phase]} onClick={handlePrimary} testId="timer-primary-button" />
+      }
     >
-      {/* 시각 앵커: 헤드라인 + 카드 내 진입 버튼(부유 금지, display="block" 전체폭).
-          데이터 앱이면 value를 <Amount typography="t1" />(핵심 숫자)로 교체하라. */}
-      <SummaryHero
-        label="FocusStreak"
-        value={<Paragraph.Text typography="t2">포모도로 집중 타이머로 하루 집중시간을 기록하고, 주간 집중 리포트는 광고 시청 후 확인하는 습관형 생산성 미니앱</Paragraph.Text>}
-        caption="로그인 없이 바로 쓸 수 있어요"
-        action={
-          // 라벨은 앱의 핵심 행동 동사로 교체하라 — "연봉 계산하기"/"기록 남기기" 등.
-          // generic "시작하기"/"확인"은 카피 규칙 위반. onClick도 실제 첫 화면 경로로.
-          <Button variant="fill" display="block" onClick={() => navigate('/')}>
-            첫 결과 보기
-          </Button>
-        }
-        testId="home-hero"
-      />
+      <div data-testid="today-hero">
+        {loading ? (
+          <Card>
+            <Skeleton />
+            <Spacing size={8} />
+            <Skeleton />
+          </Card>
+        ) : (
+          <>
+            <SummaryHero
+              label="오늘 집중"
+              value={<CountUp value={todayMin} unit="분" typography="t1" />}
+              caption={heroCaption}
+            />
+            <Spacing size={12} />
+            <MiniBar testId="today-goal-bar" ratio={goalRatio} />
+          </>
+        )}
+      </div>
 
       <Spacing size={24} />
 
-      {/* 핵심 정보는 Card로 묶기(raw div 금지) — 위계 생성 */}
-      <Card testId="home-highlights">
-        {HIGHLIGHTS.map((h, idx) => (
-          <ListRow
-            key={idx}
-            contents={<ListRow.Texts type="2RowTypeA" top={h.title} bottom={h.description} />}
-          />
-        ))}
-      </Card>
+      <div data-testid="timer-card">
+        {loading ? (
+          <Card>
+            <Skeleton />
+          </Card>
+        ) : (
+          <Card>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <CircularProgress ratio={progressRatio} />
+              <Paragraph.Text typography="t2">
+                <span ref={clockRef} data-testid="timer-clock">
+                  {formatClock(remainingMs)}
+                </span>
+              </Paragraph.Text>
+              <Paragraph.Text typography="st13" color="var(--adaptiveGrey700)">
+                {PHASE_LABEL[phase]}
+              </Paragraph.Text>
+            </div>
+          </Card>
+        )}
+      </div>
+
+      <Spacing size={24} />
+
+      {!loading && phase !== 'running' ? <AdSlot adGroupId="home-timer-idle" /> : null}
 
       <Spacing size={24} />
     </ScreenScaffold>
