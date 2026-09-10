@@ -5,47 +5,47 @@
  * 타입을 그대로 가정해도 된다. 추측이 어긋나 병합에서 무너지는 것을 막기 위한 파일이다.
  */
 
-/** 홈→저장, 캘린더/히스토리/리포트에서 표시 (구현: 패킷 0001) */
-export type TimerSession = { id: string; date: string; startedAt: number; endedAt: number; durationMs: number; amountKrw: number; tags: string[]; status: 'completed' | 'abandoned' };
+/** 일별 타이머 기록 (구현: 패킷 heal-1-02) */
+export type Record = { id: string; date: string; tagId: string; durationMs: number; note: string };
 
-/** 캘린더, 리포트, 히스토리에서 조회 (구현: 패킷 0004) */
-export type DailyRecord = { date: string; sessions: TimerSession[]; totalDurationMs: number; totalAmountKrw: number };
+/** 현재 진행 중인 세션 상태 (구현: 패킷 heal-1-02) */
+export type SessionData = { startTime: number; elapsedMs: number; status: 'idle' | 'running' | 'paused' };
 
-/** 홈(축하 시트), 배지 화면, 리포트(리워드) (구현: 패킷 0008) */
-export type Badge = { id: string; name: string; description: string; icon: string; criterion: string; unlockedAt?: string };
+/** 배지 달성 정보 (구현: 패킷 heal-1-02) */
+export type Badge = { id: string; name: string; description: string; achieved: boolean; achievedAt?: string };
 
-/** 홈(입력), 히스토리(필터), 리포트(비중) (구현: 패킷 0002) */
-export type Tag = { id: string; name: string; emoji?: string };
+/** 태그 메타데이터 (구현: 패킷 heal-1-02) */
+export type Tag = { id: string; name: string; colorHex: string };
 
-/** 리포트 결과 카드 (구현: 패킷 0006) */
-export type WeeklyStats = { week: string; totalDurationMs: number; totalAmountKrw: number; tagDistribution: Record<string, number>; newBadges: Badge[] };
+/** 주간 통계 집계 (구현: 패킷 heal-1-02) */
+export type WeeklyStats = { totalDurationMs: number; dayStats: Record<string, number>; tagBreakdown: Record<string, number> };
 
-/** 모든 화면에서 타이머 데이터 접근 (구현: 패킷 0001) */
-export type useTimerStoreFn = () => { sessions: TimerSession[]; saveSession: (s: TimerSession) => void; deleteSession: (id: string) => void; clearAll: () => void };
+/** 라우트 정의 스키마 (구현: 패킷 heal-1-01) */
+export type RouteConfig = { path: string; name: string; component: React.ComponentType<any>; icon?: string };
 
-/** 캘린더, 히스토리, 리포트에서 특정 날짜 기록 조회 (구현: 패킷 0004) */
-export type useDailyRecordFn = (date: string) => DailyRecord | null;
+/** 현재 KST 타임스탬프 반환 (구현: 패킷 heal-1-02) */
+export type getKSTNowFn = () => number;
 
-/** 홈(축하), 배지 화면 (구현: 패킷 0008) */
-export type useBadgeProgressFn = () => { all: Badge[]; unlocked: Badge[]; newly: Badge[] };
+/** 타임스탬프를 KST 날짜 문자열로 변환 (YYYY-MM-DD) (구현: 패킷 heal-1-02) */
+export type getKSTDateFn = (timestamp?: number) => string;
 
-/** 홈(태그 저장), 히스토리(필터), 리포트 (구현: 패킷 0002) */
-export type useUserTagsFn = () => { tags: Tag[]; addTag: (name: string, emoji?: string) => void; deleteTag: (id: string) => void };
+/** 밀리초를 '1h 23m' 형식으로 포맷 (구현: 패킷 heal-1-02) */
+export type formatDurationFn = (ms: number) => string;
 
-/** 모든 화면의 시간 표시 (구현: 패킷 0001) */
-export type formatDurationFn = (ms: number, format?: 'short' | 'long') => string;
+/** 현재 진행 중인 세션 조회 (구현: 패킷 heal-1-02) */
+export type getSessionFn = () => Promise<SessionData | null>;
 
-/** 리포트, 더보기에서 금액 표시 (구현: 패킷 0005) */
-export type formatCurrencyFn = (krw: number) => string;
+/** 세션 상태 저장 (구현: 패킷 heal-1-02) */
+export type saveSessionFn = (session: SessionData) => Promise<void>;
 
-/** 리포트 결과 계산 (구현: 패킷 0006) */
-export type calculateWeeklyStatsFn = (sessions: TimerSession[], week: string) => WeeklyStats;
+/** 날짜 범위 내 기록 조회 (구현: 패킷 heal-1-02) */
+export type getRecordsFn = (startDate?: string, endDate?: string) => Promise<Record[]>;
 
-/** 배지 달성 여부 판정 (구현: 패킷 0008) */
-export type getBadgeUnlockStatusFn = (badge: Badge, sessions: TimerSession[]) => boolean;
+/** 새 기록 저장, 생성된 Record 반환 (구현: 패킷 heal-1-02) */
+export type saveRecordFn = (record: Omit<Record, 'id'>) => Promise<Record>;
 
-/** 타이머 기본값, 홈에서 사용 (구현: 패킷 0010) */
-export type TIMER_MODES = { focus: { durationMs: number; rewardKrw: number }; break: { durationMs: number } };
+/** 기록 삭제 (구현: 패킷 heal-1-02) */
+export type deleteRecordFn = (id: string) => Promise<void>;
 
-/** 모든 화면에서 설정 접근 (구현: 패킷 0010) */
-export type useAppConfigFn = () => { timerMode: 'focus' | 'break'; rewardPerMin: number; updateConfig: (cfg: Partial<{ timerMode: 'focus' | 'break'; rewardPerMin: number }>) => void };
+/** 주간 통계 계산 (weekStart: YYYY-MM-DD) (구현: 패킷 heal-1-02) */
+export type getWeeklyStatsFn = (weekStart: string) => Promise<WeeklyStats>;
