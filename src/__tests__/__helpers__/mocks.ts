@@ -172,7 +172,14 @@ export function mockTds() {
 // Mocks the REAL SDK exports (verified from .d.ts).
 // SDK is imperative (no hooks). Callback-style APIs invoke onEvent immediately for test speed.
 export function mockAppsInToss() {
-  vi.mock("@apps-in-toss/web-framework", () => {
+  // vi.doMock (NOT vi.mock): a vi.mock call is hoisted to the top of the FILE it's written in
+  // regardless of nesting — merely importing this helper module would otherwise hoist-register
+  // this mock file-wide (even without ever calling mockAppsInToss()) and silently override any
+  // test-file-local vi.mock("@apps-in-toss/web-framework", ...) that needs different behavior
+  // per test (e.g. packet-0005's ad success/failure scenarios). vi.doMock only takes effect when
+  // this function actually runs, and callers must invoke it before importing the page under test
+  // (see mockAll() usage: called before `import Page from "@/pages/..."`).
+  vi.doMock("@apps-in-toss/web-framework", () => {
     const Storage = {
       setItem: vi.fn(async (k: string, v: string) => { localStorage.setItem(k, v); }),
       getItem: vi.fn(async (k: string) => localStorage.getItem(k)),
@@ -295,7 +302,13 @@ export function mockAppsInToss() {
 // TossRewardAd is a project-local component that wraps content behind ad viewing.
 // In tests, render the children directly (ad always "watched").
 export function mockTossRewardAd() {
-  vi.mock("@/components/TossRewardAd", () => ({
+  // vi.doMock (NOT vi.mock): vi.mock calls are hoisted to the top of the FILE they're
+  // written in regardless of nesting — if this were vi.mock, merely importing this helper
+  // module (even without calling mockTossRewardAd()) would hoist-register this mock file-wide
+  // and silently swap out the real TossRewardAd for every test, including ones that need the
+  // real component's ad-gating logic (e.g. reward/failure-flow tests). vi.doMock only takes
+  // effect when this function actually runs.
+  vi.doMock("@/components/TossRewardAd", () => ({
     TossRewardAd: ({ children, onReward }: any) => {
       // Auto-trigger onReward in tests to unlock content
       if (onReward) setTimeout(onReward, 0);

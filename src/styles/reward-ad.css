@@ -29,3 +29,9 @@
   background-color: var(--tds-color-grey300, #B0C4DE);
   cursor: default;
 }
+
+.reward-ad-button--failed {
+  background-color: transparent;
+  color: var(--tds-color-blue500, #3182F6);
+  border: 1px solid var(--tds-color-blue500, #3182F6);
+}
