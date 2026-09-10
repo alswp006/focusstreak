@@ -1,0 +1,441 @@
+[
+  {
+    "id": "0001",
+    "title": "S1 타이머 홈 — 히어로 + 타이머 카드 + 1차 액션",
+    "epic": "Epic 3. 화면",
+    "task": {
+      "description": "`/` 타이머 홈 화면을 만든다. 오늘 누적 집중 분을 SummaryHero+Amount로 앵커하고 MiniBar로 목표 진행률을 보여준다. Card 안에 커스텀 SVG CircularProgress와 mm:ss, phase 라벨을 렌더하고, SubmitFooter의 1차 버튼으로 집중 시작/일시정지/이어서 집중을 전환한다. 남은 시간은 endsAt 절대 타임스탬프 기준으로 매 틱 재계산하며 setInterval 카운트다운 누산 금지. phase가 running일 때는 AdSlot 배너를 렌더하지 않는다.",
+      "acceptance_criteria": [
+        "오늘 누적 0분이면 히어로 caption이 '오늘 첫 집중을 시작해보세요', 1분 이상이면 '목표 {goalMin}분 중 {pct}%'로 렌더된다",
+        "hydrate 상태가 loading이면 today-hero와 timer-card 자리에 TDS Skeleton이 렌더되고 빈 상태 문구는 렌더되지 않는다",
+        "data-testid='timer-primary-button' 라벨이 phase idle→'집중 시작', running→'일시정지', paused→'이어서 집중'으로 정확히 바뀌고 높이 56px 이상이다",
+        "phase==='running'인 동안 DOM에 AdSlot이 존재하지 않고, idle/paused/break에서는 콘텐츠 최하단에 static으로 1개 존재한다",
+        "앱을 백그라운드에 두었다가 visibilitychange→visible 시 mm:ss가 endsAt-Date.now() 기준으로 재계산되어 실제 경과 시간과 1초 이내 오차로 일치한다"
+      ]
+    },
+    "covers": [
+      "F2-AC1",
+      "F2-AC2",
+      "F2-AC3",
+      "F2-AC4"
+    ],
+    "files": [
+      "src/pages/Home.tsx",
+      "src/components/CircularProgress.tsx"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "HEX 색상 리터럴 0건 (var(--tds-color-*)만 사용)",
+      "1차 버튼 탭 시 generateHapticFeedback({ type: 'success' }) 호출",
+      "날짜 계산은 src/lib/date.ts의 toDateKey만 사용하고 페이지 내부에서 자체 날짜 연산 금지"
+    ],
+    "depends_on": [],
+    "db_schema": "interface RunningTimer { phase: 'idle'|'running'|'paused'|'break'; startedAt: number; endsAt: number; pausedAt: number|null; accumulatedSec: number; plannedSec: number; tag: FocusTag; version: 1 } → localStorage key: 'fs:timer:v1' (읽기/쓰기는 storage.ts 경유, 페이지에서 localStorage 직접 호출 금지)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: StatusPanel (+ FixedBottomCTA)\nTDS whitelist: Top, SummaryHero, Amount, MiniBar, Card, Paragraph, Spacing, Button, Chip, BottomSheet, AlertDialog, Toast, Skeleton, SubmitFooter, AdSlot, FloatingTabBar\n\nLayout:\n<ScreenScaffold>\n  <Top title={<Top.TitleParagraph>FocusStreak</Top.TitleParagraph>} right={<Button variant=\"weak\" size=\"small\" onClick={goSettings}>설정</Button>} />\n  <SummaryHero data-testid=\"today-hero\" label=\"오늘 집중\" value={<Amount value={todayMin} unit=\"분\" typography=\"t1\" />} caption={todayMin === 0 ? \"오늘 첫 집중을 시작해보세요\" : `목표 ${goalMin}분 중 ${pct}%`} />\n  <MiniBar data-testid=\"today-goal-bar\" value={todayMin} max={goalMin} />\n  <Spacing size={24} />\n  <Card data-testid=\"timer-card\">\n    <CircularProgress ratio={remainRatio} />  {/* 커스텀 SVG, var(--tds-color-*) */}\n    <Paragraph.Text typography=\"t2\">{mmss}</Paragraph.Text>\n    <Paragraph.Text typography=\"st13\" color=\"tertiary\">{phaseLabel}</Paragraph.Text>\n  </Card>\n  <Spacing size={16} />\n  <Button variant=\"weak\" size=\"medium\" display=\"block\" onClick={openGiveUp}>포기</Button>  {/* running/paused만 */}\n  <Spacing size={24} />\n  {phase !== 'running' && <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} />}\n  <SubmitFooter>\n    <Button data-testid=\"timer-primary-button\" variant=\"fill\" size=\"large\" display=\"block\">{phase === 'paused' ? '이어서 집중' : phase === 'running' ? '일시정지' : '집중 시작'}</Button>\n  </SubmitFooter>\n  <Toast open={toastOpen} position=\"bottom\" onClose={closeToast} />\n  <FloatingTabBar />\n</ScreenScaffold>\n\nStates:\n- Loading: today-hero·timer-card 자리에 Skeleton (빈 상태 문구 렌더 금지)\n- Empty: 오늘 0분 → 히어로 caption \"오늘 첫 집중을 시작해보세요\" (별도 EmptyState 블록 없음)\n- Error: 저장 실패 시 Toast \"기록을 저장하지 못했어요\"\n\nInteractions:\n- 1차 버튼(56px) 탭 → generateHapticFeedback({ type: 'success' }) 후 phase 전환\n- 만료 타이머 복원 시 Toast \"진행 중이던 타이머를 종료했어요\"\n- visibilitychange→visible 시 endsAt 기준 mm:ss 재계산(재생 애니메이션 없음)\n- 여백은 TDS Spacing(size 필수)만 사용, 하단 고정 요소는 paddingBottom: calc(Npx + env(safe-area-inset-bottom))"
+  },
+  {
+    "id": "0002",
+    "title": "S1 홈 — 태그 저장 BottomSheet · 포기 확인 · 배지 축하",
+    "epic": "Epic 3. 화면",
+    "task": {
+      "description": "홈 화면의 세션 종료 플로우를 완성한다. 집중이 끝나거나 사용자가 포기하면 태그 선택 BottomSheet(공부/업무/운동 Chip 3종)를 띄워 세션을 저장하고, 포기 시에는 AlertDialog로 확인을 받은 뒤 지금까지 집중한 시간만 기록한다. 저장 직후 신규 획득 배지가 있으면 축하 BottomSheet를 1회 노출한다. 저장 실패 시 Toast로 알린다.",
+      "acceptance_criteria": [
+        "집중 시간이 만료되면 data-testid='tag-sheet' BottomSheet가 자동으로 열리고 기본 선택 Chip은 설정의 defaultTag와 일치한다",
+        "'저장'을 누르면 FocusSession 1건이 저장되고 시트가 닫히며 오늘 누적 분이 저장한 durationSec 만큼 즉시 증가한다",
+        "'포기' 버튼 → AlertDialog 제목 '집중을 포기할까요?', 설명 '지금까지 집중한 시간만 기록해요.'가 뜨고 왼쪽 버튼 라벨은 '닫기'다",
+        "경과 시간이 60초 미만인 상태에서 포기를 확정하면 세션이 저장되지 않고 Toast '1분 미만은 기록하지 않아요'가 뜬다",
+        "세션 저장 후 새로 충족된 배지가 있으면 축하 BottomSheet가 열리고 배지 title이 표시되며, 같은 배지로는 다시 열리지 않는다"
+      ]
+    },
+    "covers": [
+      "F2-AC5",
+      "F2-AC6",
+      "F3-AC1",
+      "F6-AC6"
+    ],
+    "files": [
+      "src/pages/Home.tsx",
+      "src/components/TagSheet.tsx",
+      "src/components/BadgeCelebrationSheet.tsx"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "세션 id는 date.ts의 safeId() 사용 (crypto.randomUUID 직접 호출 금지)",
+      "Chip 선택 시 generateHapticFeedback({ type: 'tickWeak' }), 포기 확정 시 tickStrong 호출",
+      "HEX 색상 리터럴 0건, console.error 호출 0건"
+    ],
+    "depends_on": [
+      "0001"
+    ],
+    "db_schema": "interface FocusSession { id: string; dateKey: string; startedAt: number; endedAt: number; plannedSec: number; durationSec: number; tag: 'study'|'work'|'exercise'; completed: boolean } → localStorage key: 'fs:sessions:v1' (배열, startedAt DESC). 배지: 'fs:badges:v1'",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "TDS whitelist: BottomSheet, Chip, Button, Paragraph, Spacing, AlertDialog, Toast, Asset\n\nLayout (홈 화면 내부에 추가):\n<BottomSheet data-testid=\"tag-sheet\" open={askTag}>\n  <Paragraph.Text typography=\"t5\">어떤 집중이었나요?</Paragraph.Text>\n  <Spacing size={16} />\n  <div style={{ display:'flex', gap:8 }}>\n    <Chip label=\"공부\" variant=\"filled\" selected /> <Chip label=\"업무\" variant=\"outlined\" /> <Chip label=\"운동\" variant=\"outlined\" />\n  </div>\n  <Spacing size={24} />\n  <Button variant=\"fill\" size=\"large\" display=\"block\">저장</Button>\n</BottomSheet>\n<AlertDialog open={giveUp} title=\"집중을 포기할까요?\" description=\"지금까지 집중한 시간만 기록해요.\" alertButton={<AlertDialog.AlertButton onClick={confirm}>포기하기</AlertDialog.AlertButton>} onClose={close} />  {/* 왼쪽 버튼 라벨 '닫기' */}\n<BottomSheet data-testid=\"badge-celebration\" open={newBadge != null}>\n  <Asset.ContentIcon />\n  <Paragraph.Text typography=\"t4\">배지를 얻었어요</Paragraph.Text>\n  <Paragraph.Text typography=\"st13\" color=\"tertiary\">{badge.title} · {badge.condition}</Paragraph.Text>\n  <Spacing size={24} />\n  <Button variant=\"fill\" size=\"large\" display=\"block\">확인</Button>\n</BottomSheet>\n\nStates:\n- 저장 중: 저장 버튼 loading 상태, 중복 탭 방지(disabled)\n- Error: 저장 실패 시 Toast \"기록을 저장하지 못했어요\"\n\nInteractions: 태그 Chip 선택 → tickWeak / 포기 확정 → tickStrong. 시트 내부 탭 가능 요소 ≥44×44px. 여백은 TDS Spacing만 사용."
+  },
+  {
+    "id": "0003",
+    "title": "S2 캘린더 화면",
+    "epic": "Epic 3. 화면",
+    "task": {
+      "description": "`/calendar` 화면을 만든다. 상단에 현재/최장 스트릭 히어로를 두고, 월 단위 7열 그리드에 일별 집중 농도(level 0~3)를 렌더한다. 이전/다음 달 이동이 가능하되 미래 달은 비활성화한다. 셀을 탭하면 해당 dateKey를 RouteState 계약대로 넘겨 /history로 이동한다. 그리드 아래에 농도 범례와 AdSlot 배너를 static으로 배치한다.",
+      "acceptance_criteria": [
+        "각 셀에 data-date-key와 data-level(0~3)이 부여되고 level은 domain.getDayLevel(totalMin, goalMinPerDay) 결과와 일치한다",
+        "셀 크기가 minWidth·minHeight 44px 이상이고 배경색은 var(--tds-color-*) 토큰만 사용한다",
+        "'다음 달' 버튼은 현재 표시 월이 이번 달일 때 disabled이며, '이전 달'은 항상 활성이다",
+        "셀 탭 시 navigate('/history', { state: { dateKey } })가 호출되고 dateKey는 'YYYY-MM-DD' 형식이다",
+        "표시 월 세션이 0건이면 그리드는 유지된 채 아래에 Asset.ContentIcon과 '이번 달 집중 기록이 아직 없어요' 문구가 렌더된다"
+      ]
+    },
+    "covers": [
+      "F4-AC1",
+      "F4-AC2",
+      "F4-AC3",
+      "F4-AC4",
+      "F4-AC5"
+    ],
+    "files": [
+      "src/pages/Calendar.tsx"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "날짜 그리드는 date.ts의 startOfMonthGrid(year, month) 결과만 사용하고 자체 날짜 연산 금지",
+      "AdSlot은 position: static으로 그리드 아래에만 배치, 콘텐츠 위 겹침 없음",
+      "HEX 색상 리터럴 0건"
+    ],
+    "depends_on": [],
+    "db_schema": "읽기 전용: 'fs:sessions:v1'(FocusSession[]), 'fs:settings:v1'(goalMinPerDay), 스트릭은 sessions에서 computeStreak로 재계산",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: InteractiveGrid\nTDS whitelist: Top, Button, SummaryHero, Amount, Card, Paragraph, Spacing, Skeleton, Asset, AdSlot, FloatingTabBar\n\nLayout:\n<ScreenScaffold>\n  <Top title={<Top.TitleParagraph>{`${y}년 ${m}월`}</Top.TitleParagraph>} upper={<div style={{display:'flex',justifyContent:'space-between'}}><Button variant=\"weak\" size=\"small\" onClick={prevMonth}>이전 달</Button><Button variant=\"weak\" size=\"small\" onClick={nextMonth} disabled={isThisMonth}>다음 달</Button></div>} />\n  <SummaryHero data-testid=\"streak-hero\" label=\"집중 스트릭\" value={<Amount value={currentStreak} unit=\"일 연속\" typography=\"t1\" />} caption={`최장 ${longestStreak}일`} />\n  <Spacing size={24} />\n  <Card data-testid=\"calendar-card\">\n    <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap: 6 }}>\n      {days.map(d => (<button key={d.dateKey} data-date-key={d.dateKey} data-level={d.level} style={{ minWidth:44, minHeight:44, borderRadius:8, backgroundColor:`var(--tds-color-${LEVEL_TOKEN[d.level]})` }} onClick={() => go(d.dateKey)} />))}\n    </div>\n  </Card>\n  <Spacing size={12} />\n  <div style={{ display:'flex', gap:8, alignItems:'center' }}>\n    <Paragraph.Text typography=\"st13\" color=\"tertiary\">적음</Paragraph.Text>\n    {[0,1,2,3].map(l => <span key={l} data-level={l} style={{width:12,height:12,borderRadius:3}} />)}\n    <Paragraph.Text typography=\"st13\" color=\"tertiary\">목표 달성</Paragraph.Text>\n  </div>\n  <Spacing size={24} />\n  <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} />   {/* position: static, 그리드 아래 */}\n  <FloatingTabBar />\n</ScreenScaffold>\n\nStates:\n- Loading: streak-hero → Skeleton, 셀은 data-level=\"0\" 회색 플레이스홀더\n- Empty: 표시 월 세션 0건 → 그리드 아래 Asset.ContentIcon + Paragraph.Text \"이번 달 집중 기록이 아직 없어요\" (그리드는 유지)\n\nInteractions: 셀 탭 → /history로 dateKey 전달, 빈칸('') 셀은 렌더하되 비활성. 여백은 TDS Spacing만 사용."
+  },
+  {
+    "id": "0004",
+    "title": "S3 일별 기록 화면 (state 방어 · 필터 · 수정/삭제)",
+    "epic": "Epic 3. 화면",
+    "task": {
+      "description": "`/history` 화면을 만든다. location.state의 dateKey를 isValidDateKey로 검증해 유효하지 않으면 오늘 날짜로 폴백한다(크래시 금지). 해당 날짜의 세션을 ListRow로 최신순 표시하고 태그 Chip 필터를 제공한다. 각 행에서 태그 수정과 삭제가 가능하며 삭제는 AlertDialog로 확인받는다. 20개 단위 '더 보기' 페이지네이션을 적용한다.",
+      "acceptance_criteria": [
+        "location.state가 undefined이거나 dateKey가 '2026-13-99' 같은 잘못된 값이면 화면이 크래시하지 않고 오늘 dateKey 기록을 렌더한다",
+        "태그 Chip(전체/공부/업무/운동) 선택 시 해당 태그 세션만 목록에 남고, 상단 합계 분도 필터 결과 기준으로 갱신된다",
+        "목록이 20건을 초과하면 하단에 '더 보기' Button이 보이고, 탭할 때마다 20건씩 추가 렌더되며 전부 노출되면 버튼이 사라진다",
+        "행의 삭제를 확정하면 해당 세션이 목록과 localStorage에서 제거되고 Toast '기록을 삭제했어요'가 뜬다",
+        "해당 날짜 세션이 0건이면 Asset.ContentIcon + '이 날은 집중 기록이 없어요' + '집중 시작하기' Button(→ '/')이 렌더된다"
+      ]
+    },
+    "covers": [
+      "F3-AC2",
+      "F3-AC3",
+      "F3-AC4",
+      "F3-AC5",
+      "F3-AC6"
+    ],
+    "files": [
+      "src/pages/History.tsx"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "navigate state 타입은 types.ts의 RouteState['/history'] 사용",
+      "날짜 검증은 date.ts의 isValidDateKey만 사용",
+      "HEX 색상 리터럴 0건, ListRow에 padding prop/인라인 여백 덮어쓰기 없음"
+    ],
+    "depends_on": [],
+    "db_schema": "FocusSession[] ← localStorage key 'fs:sessions:v1' (읽기/수정/삭제는 storage.ts + store 액션 경유)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: FilterableList\nTDS whitelist: Top, Chip, ListRow, Button, Paragraph, Spacing, Skeleton, Asset, AlertDialog, BottomSheet, Toast, AdSlot, FloatingTabBar\n\nLayout:\n<ScreenScaffold>\n  <Top title={<Top.TitleParagraph>{`${m}월 ${d}일 기록`}</Top.TitleParagraph>} right={<Button variant=\"weak\" size=\"small\" onClick={goBack}>닫기</Button>} />\n  <Paragraph.Text typography=\"t3\">{`총 ${totalMin}분 · ${count}회`}</Paragraph.Text>\n  <Spacing size={16} />\n  <div style={{ display:'flex', gap:8, overflowX:'auto' }}>\n    <Chip label=\"전체\" variant=\"filled\" selected /> <Chip label=\"공부\" variant=\"outlined\" /> <Chip label=\"업무\" variant=\"outlined\" /> <Chip label=\"운동\" variant=\"outlined\" />\n  </div>\n  <Spacing size={16} />\n  {visible.map(s => (\n    <ListRow key={s.id} data-testid=\"session-row\"\n      contents={<ListRow.Texts type=\"2RowTypeA\" top={`${Math.round(s.durationSec/60)}분 · ${TAG_LABEL[s.tag]}`} bottom={`${hhmm(s.startedAt)} ~ ${hhmm(s.endedAt)}${s.completed ? '' : ' · 중단'}`} />}\n      right={<Button variant=\"weak\" size=\"small\" onClick={() => openEdit(s)}>수정</Button>} />\n  ))}\n  {hasMore && (<><Spacing size={16} /><Button variant=\"weak\" size=\"medium\" display=\"block\" onClick={loadMore}>더 보기</Button></>)}\n  <Spacing size={24} />\n  <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} />\n  <BottomSheet data-testid=\"edit-sheet\" open={editing != null}>  {/* 태그 Chip 3종 + 저장 Button + 삭제 Button(variant=\"weak\") */}\n  </BottomSheet>\n  <AlertDialog open={confirmDelete} title=\"기록을 삭제할까요?\" description=\"삭제한 기록은 되돌릴 수 없어요.\" alertButton={<AlertDialog.AlertButton onClick={doDelete}>삭제하기</AlertDialog.AlertButton>} onClose={close} />  {/* 왼쪽 버튼 '닫기' */}\n  <Toast open={toastOpen} position=\"bottom\" onClose={closeToast} />\n  <FloatingTabBar />\n</ScreenScaffold>\n\nStates:\n- Loading: ListRow 3개 자리에 Skeleton\n- Empty: Asset.ContentIcon + \"이 날은 집중 기록이 없어요\" + Button display=\"block\" '집중 시작하기' → navigate('/')\n- Error: 삭제/수정 실패 시 Toast \"변경을 저장하지 못했어요\"\n\nInteractions: 모든 탭 요소 ≥44×44px, Chip 선택 시 tickWeak. 여백은 TDS Spacing만 사용."
+  },
+  {
+    "id": "0005",
+    "title": "S4 주간 리포트 — 잠금 상태 & 리워드 광고 게이트",
+    "epic": "Epic 3. 화면",
+    "task": {
+      "description": "`/report` 화면의 잠금(게이트) 레이어를 만든다. 이번 주 리포트가 아직 해제되지 않았으면 잠금 카드와 TossRewardAd로 감싼 해제 버튼을 보여준다. 광고 시청이 끝나면 weekKey를 unlocked에 기록해 같은 주에는 다시 광고를 요구하지 않는다. 광고 로드/시청 실패 시 재시도 안내와 실패 횟수를 기록하고, 3회 연속 실패하면 광고 없이 리포트를 연다.",
+      "acceptance_criteria": [
+        "이번 주 weekKey가 unlocked에 없으면 잠금 카드와 '광고 보고 리포트 열기' 버튼이 보이고 리포트 수치는 DOM에 렌더되지 않는다",
+        "광고 시청 완료 콜백이 오면 unlocked[weekKey]=Date.now()가 저장되고 즉시 리포트 결과 영역이 렌더된다",
+        "해제 후 페이지를 새로고침해도 같은 weekKey에서는 광고 게이트가 다시 나타나지 않는다",
+        "광고 실패 시 Toast '광고를 불러오지 못했어요'와 '다시 시도' Button이 보이고 adFailCount[weekKey]가 1 증가한다",
+        "adFailCount[weekKey]가 3 이상이면 광고 없이 리포트가 열리고 unlocked에 기록된다"
+      ]
+    },
+    "covers": [
+      "F5-AC1",
+      "F5-AC2",
+      "F5-AC3"
+    ],
+    "files": [
+      "src/pages/Report.tsx"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "보상형 광고는 템플릿 제공 <TossRewardAd slotId={import.meta.env.VITE_TOSS_AD_SLOT_ID}> 컴포넌트만 사용 (SDK 직접 호출 금지)",
+      "잠금 화면에는 AdSlot 배너를 함께 렌더하지 않는다",
+      "weekKey는 date.ts의 toWeekKey만 사용, HEX 색상 리터럴 0건"
+    ],
+    "depends_on": [],
+    "db_schema": "interface ReportUnlockState { unlocked: Record<string, number>; adFailCount: Record<string, number>; version: 1 } → localStorage key: 'fs:report_unlock:v1' (unlocked는 최근 12개 weekKey 유지)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: GatedResult (리워드 광고 게이트)\nTDS whitelist: Top, Card, Paragraph, Spacing, Button, Asset, Skeleton, Toast, TossRewardAd, FloatingTabBar\n\nLayout:\n<ScreenScaffold>\n  <Top title={<Top.TitleParagraph>주간 집중 리포트</Top.TitleParagraph>} />\n  <Paragraph.Text typography=\"st13\" color=\"tertiary\">{`${weekKey} · ${weekRangeLabel}`}</Paragraph.Text>\n  <Spacing size={24} />\n  {locked ? (\n    <Card data-testid=\"report-lock-card\">\n      <Asset.ContentIcon />\n      <Paragraph.Text typography=\"t4\">이번 주 집중 리포트가 준비됐어요</Paragraph.Text>\n      <Paragraph.Text typography=\"st13\" color=\"tertiary\">짧은 광고를 보면 이번 주 리포트를 열어드려요</Paragraph.Text>\n      <Spacing size={24} />\n      <TossRewardAd slotId={import.meta.env.VITE_TOSS_AD_SLOT_ID}>\n        <Button data-testid=\"report-unlock-button\" variant=\"fill\" size=\"large\" display=\"block\">광고 보고 리포트 열기</Button>\n      </TossRewardAd>\n    </Card>\n  ) : <ReportResult ... />}\n  <Toast open={toastOpen} position=\"bottom\" onClose={closeToast} />\n  <FloatingTabBar />\n</ScreenScaffold>\n\nStates:\n- Loading: report-lock-card 자리에 Skeleton\n- Error: 광고 실패 → Toast \"광고를 불러오지 못했어요\" + Card 안에 Button variant=\"weak\" display=\"block\" '다시 시도'\n- Fallback: adFailCount ≥ 3 → 잠금 해제 후 Paragraph.Text \"광고 없이 리포트를 열었어요\"\n\nInteractions: 해제 버튼 탭 → generateHapticFeedback({ type: 'success' }). 버튼 높이 56px, 여백은 TDS Spacing만 사용."
+  },
+  {
+    "id": "0006",
+    "title": "S4 주간 리포트 — 결과 카드 (히어로 · 추이 · 태그 비중)",
+    "epic": "Epic 3. 화면",
+    "task": {
+      "description": "해제된 주간 리포트 결과 영역을 컴포넌트로 만들고 /report에 연결한다. buildWeeklyReport 결과로 총 집중 분 히어로, 일평균, 목표 달성 일수를 보여주고 월~일 7일 막대 추이와 태그별 비중(공부/업무/운동)을 렌더한다. 결과 카드 아래에 AdSlot 배너를 배치한다.",
+      "acceptance_criteria": [
+        "히어로에 totalMin이 Amount로, caption에 '하루 평균 {avgMin}분 · 목표 달성 {goalMetDays}일'이 정확히 렌더된다",
+        "7일 막대가 월~일 순서로 7개 렌더되고 각 막대에 data-day-index(0~6)와 dayMin 값이 반영된다",
+        "태그 비중 3행의 분 합계가 totalMin과 일치하고, totalMin이 0이면 각 비중은 0%로 표시된다",
+        "이번 주 세션이 0건이면 '이번 주에는 아직 집중 기록이 없어요' 문구와 '집중 시작하기' Button(→ '/')이 렌더된다",
+        "결과 카드 하단에 AdSlot 배너가 static으로 1개 렌더되고 콘텐츠를 가리지 않는다"
+      ]
+    },
+    "covers": [
+      "F5-AC4",
+      "F5-AC5",
+      "F5-AC6",
+      "F5-AC7"
+    ],
+    "files": [
+      "src/components/WeeklyReportResult.tsx",
+      "src/pages/Report.tsx"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "수치는 domain.buildWeeklyReport 결과만 사용 (컴포넌트 내부 집계 금지)",
+      "막대 색상은 var(--tds-color-*)만 사용, HEX 리터럴 0건",
+      "여백은 TDS Spacing(size 필수)만 사용"
+    ],
+    "depends_on": [
+      "0005"
+    ],
+    "db_schema": "interface WeeklyReport { weekKey: string; totalMin: number; avgMin: number; goalMetDays: number; dayMin: [number,number,number,number,number,number,number]; tagMin: Record<FocusTag, number> } (sessions에서 파생, 저장하지 않음)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: ResultSummary\nTDS whitelist: SummaryHero, Amount, Card, Paragraph, Spacing, MiniBar, ListRow, Button, Asset, AdSlot\n\nLayout:\n<>\n  <SummaryHero data-testid=\"report-hero\" label=\"이번 주 집중\" value={<Amount value={report.totalMin} unit=\"분\" typography=\"t1\" />} caption={`하루 평균 ${report.avgMin}분 · 목표 달성 ${report.goalMetDays}일`} />\n  <Spacing size={24} />\n  <Card data-testid=\"report-trend\">\n    <Paragraph.Text typography=\"t5\">요일별 집중</Paragraph.Text>\n    <Spacing size={16} />\n    <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6, alignItems:'end', height:120 }}>\n      {report.dayMin.map((v,i) => (<div key={i} data-day-index={i} style={{ height:`${maxMin ? Math.round(v/maxMin*100) : 0}%`, minHeight:4, borderRadius:4, backgroundColor:'var(--tds-color-blue-500)' }} />))}\n    </div>\n    <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6 }}>{['월','화','수','목','금','토','일'].map(d => <Paragraph.Text key={d} typography=\"st13\" color=\"tertiary\">{d}</Paragraph.Text>)}</div>\n  </Card>\n  <Spacing size={16} />\n  <Card data-testid=\"report-tags\">\n    {TAGS.map(t => (<ListRow key={t} contents={<ListRow.Texts type=\"1RowTypeA\" top={TAG_LABEL[t]} />} right={<Paragraph.Text typography=\"st13\">{`${report.tagMin[t]}분 · ${pct(t)}%`}</Paragraph.Text>} />))}\n  </Card>\n  <Spacing size={24} />\n  <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} />\n</>\n\nStates:\n- Empty: totalMin === 0 → Asset.ContentIcon + Paragraph.Text \"이번 주에는 아직 집중 기록이 없어요\" + Button display=\"block\" '집중 시작하기' → navigate('/')\n- Loading: 히어로/카드 자리에 Skeleton\n\nInteractions: 스크롤만, 별도 탭 액션 없음. 모든 색상은 TDS 토큰."
+  },
+  {
+    "id": "0007",
+    "title": "[부가] S5 더보기 화면",
+    "epic": "Epic 3. 화면",
+    "task": {
+      "description": "[부가] `/more` 화면을 만든다. 배지, 친구 랭킹, 설정, 주간 리포트로 이동하는 ListRow 메뉴를 제공하고, 상단에 누적 집중 시간·총 세션 수 요약을 보여준다. 하단에는 앱 버전과 데이터가 이 기기에만 저장된다는 안내 문구를 넣는다. 외부 웹/앱 링크와 설치 유도 문구는 넣지 않는다.",
+      "acceptance_criteria": [
+        "ListRow 4개(배지, 친구 랭킹, 주간 리포트, 설정)가 렌더되고 각 탭 시 /badges, /rank, /report, /settings로 이동한다",
+        "상단 요약에 누적 집중 분과 총 세션 수가 sessions 배열 기준 값으로 표시된다",
+        "화면 어디에도 외부 http(s) 링크, window.open, '앱 설치'/'다운로드' 문구가 존재하지 않는다",
+        "하단 안내 문구 '기록은 이 기기에만 저장돼요'가 렌더되고 각 ListRow 높이가 44px 이상이다"
+      ]
+    },
+    "covers": [
+      "F8-AC1",
+      "F8-AC2",
+      "F8-AC3"
+    ],
+    "files": [
+      "src/pages/More.tsx"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "ListRow에 padding prop 또는 인라인 여백 덮어쓰기 없음, 간격은 TDS Spacing만 사용",
+      "HEX 색상 리터럴 0건",
+      "외부 링크·설치 유도 0건 (검수 정책)"
+    ],
+    "depends_on": [],
+    "db_schema": "읽기 전용: 'fs:sessions:v1'(FocusSession[])",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: MenuList\nTDS whitelist: Top, SummaryHero, Amount, ListRow, Paragraph, Spacing, Asset, AdSlot, FloatingTabBar\n\nLayout:\n<ScreenScaffold>\n  <Top title={<Top.TitleParagraph>더보기</Top.TitleParagraph>} />\n  <SummaryHero label=\"누적 집중\" value={<Amount value={totalMin} unit=\"분\" typography=\"t1\" />} caption={`총 ${sessionCount}회 집중했어요`} />\n  <Spacing size={24} />\n  <ListRow contents={<ListRow.Texts type=\"1RowTypeA\" top=\"배지\" />} right={<ListRow.Right.Arrow />} onClick={() => navigate('/badges')} />\n  <ListRow contents={<ListRow.Texts type=\"1RowTypeA\" top=\"친구 랭킹\" />} right={<ListRow.Right.Arrow />} onClick={() => navigate('/rank')} />\n  <ListRow contents={<ListRow.Texts type=\"1RowTypeA\" top=\"주간 리포트\" />} right={<ListRow.Right.Arrow />} onClick={() => navigate('/report')} />\n  <ListRow contents={<ListRow.Texts type=\"1RowTypeA\" top=\"설정\" />} right={<ListRow.Right.Arrow />} onClick={() => navigate('/settings')} />\n  <Spacing size={24} />\n  <Paragraph.Text typography=\"st13\" color=\"tertiary\">기록은 이 기기에만 저장돼요</Paragraph.Text>\n  <Spacing size={24} />\n  <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} />\n  <FloatingTabBar />\n</ScreenScaffold>\n\nStates:\n- Loading: SummaryHero 자리에 Skeleton\n- Empty: 세션 0건 → caption \"아직 집중 기록이 없어요\"\n\nInteractions: ListRow 탭 시 즉시 라우팅, 햅틱 없음. 모든 탭 요소 ≥44×44px."
+  },
+  {
+    "id": "0008",
+    "title": "[부가] S6 배지 화면",
+    "epic": "Epic 3. 화면",
+    "task": {
+      "description": "[부가] `/badges` 화면을 만든다. BADGE_DEFS 7종을 2열 그리드 카드로 렌더하고, 획득한 배지는 컬러+획득일, 미획득 배지는 흐린 상태와 조건 문구를 보여준다. 상단에 '7개 중 N개 획득' 요약을 두고, 미획득 배지 카드를 탭하면 달성 조건을 BottomSheet로 안내한다.",
+      "acceptance_criteria": [
+        "배지 카드가 정확히 7개 렌더되고 각 카드에 data-badge-id가 BadgeId 값으로 부여된다",
+        "획득 배지는 획득일이 'YYYY.MM.DD' 형식으로 표시되고, 미획득 배지는 조건 텍스트(BADGE_DEFS.condition)가 표시된다",
+        "상단 요약이 '7개 중 {unlockedCount}개 획득'으로 표시되고 unlockedCount는 badges.unlocked 키 개수와 일치한다",
+        "미획득 카드 탭 시 BottomSheet가 열려 배지 title과 condition이 표시되고, 획득 카드 탭 시에는 열리지 않는다"
+      ]
+    },
+    "covers": [
+      "F6-AC4",
+      "F6-AC5",
+      "F6-AC7"
+    ],
+    "files": [
+      "src/pages/Badges.tsx"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "배지 정의는 types.ts의 BADGE_DEFS만 사용 (문자열 하드코딩 금지)",
+      "미획득 표현은 TDS 색상 토큰/opacity로만 처리, HEX 리터럴 0건",
+      "그리드 레이아웃 외 커스텀 CSS 없음, 간격은 TDS Spacing만 사용"
+    ],
+    "depends_on": [],
+    "db_schema": "interface BadgeState { unlocked: Record<BadgeId, number>; version: 1 } → localStorage key: 'fs:badges:v1'",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: BadgeGrid\nTDS whitelist: Top, Paragraph, Card, Spacing, Asset, BottomSheet, Button, Skeleton, AdSlot, FloatingTabBar\n\nLayout:\n<ScreenScaffold>\n  <Top title={<Top.TitleParagraph>배지</Top.TitleParagraph>} />\n  <Paragraph.Text typography=\"t3\">{`7개 중 ${unlockedCount}개 획득`}</Paragraph.Text>\n  <Spacing size={24} />\n  <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>\n    {BADGE_IDS.map(id => (\n      <Card key={id} data-badge-id={id} onClick={() => !isUnlocked(id) && openSheet(id)} style={{ opacity: isUnlocked(id) ? 1 : 0.4, minHeight:120 }}>\n        <Asset.ContentIcon />\n        <Paragraph.Text typography=\"t6\">{BADGE_DEFS[id].title}</Paragraph.Text>\n        <Paragraph.Text typography=\"st13\" color=\"tertiary\">{isUnlocked(id) ? formatDate(unlocked[id]) : BADGE_DEFS[id].condition}</Paragraph.Text>\n      </Card>\n    ))}\n  </div>\n  <Spacing size={24} />\n  <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} />\n  <BottomSheet data-testid=\"badge-condition-sheet\" open={sheetId != null}>\n    <Paragraph.Text typography=\"t4\">{BADGE_DEFS[sheetId].title}</Paragraph.Text>\n    <Paragraph.Text typography=\"st13\" color=\"tertiary\">{BADGE_DEFS[sheetId].condition}</Paragraph.Text>\n    <Spacing size={24} />\n    <Button variant=\"fill\" size=\"large\" display=\"block\" onClick={close}>확인</Button>\n  </BottomSheet>\n  <FloatingTabBar />\n</ScreenScaffold>\n\nStates:\n- Loading: 카드 6개 자리에 Skeleton\n- Empty: 획득 0개여도 7개 카드는 모두 표시(별도 EmptyState 없음), 상단 요약은 '7개 중 0개 획득'\n\nInteractions: 카드 탭 타깃 ≥44×44px, 미획득 카드만 시트 오픈."
+  },
+  {
+    "id": "0009",
+    "title": "[부가] S7 친구 랭킹 화면",
+    "epic": "Epic 3. 화면",
+    "task": {
+      "description": "[부가] `/rank` 화면을 만든다. 이번 주 내 집중 시간과 등록된 친구들의 집중 시간을 순위 리스트로 보여준다. 내 코드 생성 BottomSheet에서 닉네임(1~10자)을 받아 FS1. 코드를 만들어 표시하고, 친구 코드 붙여넣기 입력으로 친구를 추가한다. 지난 주 코드·형식 오류·20명 초과는 각각 다른 안내 문구로 처리한다.",
+      "acceptance_criteria": [
+        "순위 리스트가 focusMin 내림차순으로 렌더되고 내 항목은 nickname '나'와 강조 스타일로 표시된다",
+        "코드 입력에 'hello-world'를 넣고 추가하면 Toast '코드 형식이 올바르지 않아요'가 뜨고 목록 길이가 변하지 않는다",
+        "지난 주 weekKey 코드를 추가하면 Toast '이번 주 코드가 아니에요'가 뜬다",
+        "이번 주 친구가 20명일 때 새 닉네임 코드를 추가하면 Toast '친구는 20명까지 추가할 수 있어요'가 뜨고 저장되지 않는다",
+        "닉네임 입력 후 '코드 만들기'를 누르면 'FS1.'로 시작하는 코드가 화면에 표시되고 '복사' 버튼으로 클립보드에 복사된다"
+      ]
+    },
+    "covers": [
+      "F7-AC1",
+      "F7-AC7",
+      "F7-AC8"
+    ],
+    "files": [
+      "src/pages/Rank.tsx"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "코드 생성/파싱/병합은 src/lib/friendCode.ts 함수만 사용 (페이지 내부 base64 처리 금지)",
+      "window.open·navigator.share 미사용 (외부 이탈 금지)",
+      "TextField는 enterKeyHint=\"done\", HEX 색상 리터럴 0건"
+    ],
+    "depends_on": [],
+    "db_schema": "interface FriendEntry { id: string; nickname: string; weekKey: string; focusMin: number; addedAt: number } → localStorage key: 'fs:friends:v1' (최대 20개)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: RankingList (+ ShareSheet)\nTDS whitelist: Top, SummaryHero, Amount, ListRow, TextField, Button, BottomSheet, Paragraph, Spacing, Asset, Toast, Skeleton, AdSlot, FloatingTabBar\n\nLayout:\n<ScreenScaffold>\n  <Top title={<Top.TitleParagraph>친구 랭킹</Top.TitleParagraph>} right={<Button variant=\"weak\" size=\"small\" onClick={openMyCode}>내 코드</Button>} />\n  <SummaryHero label=\"이번 주 내 집중\" value={<Amount value={myFocusMin} unit=\"분\" typography=\"t1\" />} caption={`${weekRangeLabel} 기준`} />\n  <Spacing size={24} />\n  {ranking.map(r => (\n    <ListRow key={r.nickname} data-testid=\"rank-row\" data-is-me={r.isMe}\n      left={<Paragraph.Text typography=\"t5\">{r.rank}</Paragraph.Text>}\n      contents={<ListRow.Texts type=\"1RowTypeA\" top={r.isMe ? '나' : r.nickname} />}\n      right={<Paragraph.Text typography=\"st13\">{`${r.focusMin}분`}</Paragraph.Text>} />\n  ))}\n  <Spacing size={24} />\n  <TextField label=\"친구 코드\" placeholder=\"FS1.로 시작하는 코드를 붙여넣어요\" enterKeyHint=\"done\" value={code} onChange={setCode} />\n  <Spacing size={12} />\n  <Button variant=\"fill\" size=\"large\" display=\"block\" onClick={addFriend}>친구 추가</Button>\n  <Spacing size={24} />\n  <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} />\n  <BottomSheet data-testid=\"my-code-sheet\" open={myCodeOpen}>\n    <TextField label=\"닉네임\" maxLength={10} enterKeyHint=\"done\" />\n    <Spacing size={16} />\n    <Paragraph.Text typography=\"st13\" color=\"tertiary\">{generatedCode}</Paragraph.Text>\n    <Spacing size={16} />\n    <Button variant=\"fill\" size=\"large\" display=\"block\">코드 만들기</Button>\n    <Spacing size={8} />\n    <Button variant=\"weak\" size=\"large\" display=\"block\" onClick={copy}>복사</Button>\n  </BottomSheet>\n  <Toast open={toastOpen} position=\"bottom\" onClose={closeToast} />\n  <FloatingTabBar />\n</ScreenScaffold>\n\nStates:\n- Loading: 리스트 자리에 Skeleton 3개\n- Empty: 친구 0명 → Asset.ContentIcon + \"아직 비교할 친구가 없어요\" + '내 코드 만들기' Button (내 항목 1행은 유지)\n- Error: 코드 오류 → TextField error 상태 + Toast 문구(형식/주차/20명 초과 각각 구분)\n\nInteractions: '친구 추가' 성공 시 generateHapticFeedback({ type: 'success' }), 입력 필드 포커스 시 하단 버튼이 키보드에 가리지 않게 처리."
+  },
+  {
+    "id": "0010",
+    "title": "[부가] S8 설정 화면 (검증 · 저장 · 초기화)",
+    "epic": "Epic 3. 화면",
+    "task": {
+      "description": "[부가] `/settings` 화면을 만든다. 집중 길이(5~60분), 휴식 길이(1~30분), 하루 목표(10~720분)를 숫자 입력으로 받아 범위 검증 후 저장하고, 기본 태그 Chip과 종료 사운드 Switch를 제공한다. '모든 기록 삭제'는 AlertDialog 확인 후 fs: 프리픽스 키만 초기화한다.",
+      "acceptance_criteria": [
+        "집중 길이에 4 또는 61을 입력하면 TextField error 상태와 '5~60분 사이로 입력해요' 문구가 뜨고 저장 버튼이 disabled 된다",
+        "유효한 값으로 저장하면 Toast '설정을 저장했어요'가 뜨고, 페이지를 새로고침해도 입력값이 유지된다",
+        "기본 태그 Chip을 바꾸면 defaultTag가 저장되고, 사운드 Switch를 끄면 soundEnabled=false가 저장된다",
+        "'모든 기록 삭제' 확정 시 fs: 프리픽스 키가 모두 비워지고 홈으로 이동하며, 다른 프리픽스의 localStorage 키는 남아 있다",
+        "숫자 입력 필드 3개 모두 inputMode='numeric'이고 하단 저장 버튼이 SubmitFooter로 고정된다"
+      ]
+    },
+    "covers": [
+      "F6-AC1",
+      "F6-AC2",
+      "F6-AC3"
+    ],
+    "files": [
+      "src/pages/Settings.tsx"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "설정 저장/초기화는 storage.ts(saveSettings, clearAll)만 사용",
+      "TDS Switch 사용(Toggle 없음), 하단 고정 요소에 env(safe-area-inset-bottom) 포함",
+      "HEX 색상 리터럴 0건, 간격은 TDS Spacing만 사용"
+    ],
+    "depends_on": [],
+    "db_schema": "interface TimerSettings { focusMin: number; breakMin: number; goalMinPerDay: number; defaultTag: FocusTag; soundEnabled: boolean; version: 1 } → localStorage key: 'fs:settings:v1'",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: FormList (+ FixedBottomCTA)\nTDS whitelist: Top, TextField, Chip, Switch, ListRow, Button, Paragraph, Spacing, AlertDialog, Toast, SubmitFooter, FloatingTabBar\n\nLayout:\n<ScreenScaffold>\n  <Top title={<Top.TitleParagraph>설정</Top.TitleParagraph>} />\n  <TextField label=\"집중 길이(분)\" inputMode=\"numeric\" enterKeyHint=\"done\" value={focusMin} hasError={focusErr != null} errorMessage=\"5~60분 사이로 입력해요\" />\n  <Spacing size={16} />\n  <TextField label=\"휴식 길이(분)\" inputMode=\"numeric\" enterKeyHint=\"done\" value={breakMin} errorMessage=\"1~30분 사이로 입력해요\" />\n  <Spacing size={16} />\n  <TextField label=\"하루 목표(분)\" inputMode=\"numeric\" enterKeyHint=\"done\" value={goalMinPerDay} errorMessage=\"10~720분 사이로 입력해요\" />\n  <Spacing size={24} />\n  <Paragraph.Text typography=\"t5\">기본 태그</Paragraph.Text>\n  <Spacing size={12} />\n  <div style={{ display:'flex', gap:8 }}>\n    <Chip label=\"공부\" variant={tag==='study'?'filled':'outlined'} /> <Chip label=\"업무\" variant={tag==='work'?'filled':'outlined'} /> <Chip label=\"운동\" variant={tag==='exercise'?'filled':'outlined'} />\n  </div>\n  <Spacing size={24} />\n  <ListRow contents={<ListRow.Texts type=\"2RowTypeA\" top=\"종료 알림음\" bottom=\"집중이 끝나면 소리로 알려드려요\" />} right={<Switch checked={soundEnabled} onChange={setSound} />} />\n  <Spacing size={24} />\n  <Button variant=\"weak\" size=\"medium\" display=\"block\" onClick={openReset}>모든 기록 삭제</Button>\n  <SubmitFooter>\n    <Button data-testid=\"settings-save\" variant=\"fill\" size=\"large\" display=\"block\" disabled={hasError} onClick={save}>저장</Button>\n  </SubmitFooter>\n  <AlertDialog open={resetOpen} title=\"모든 기록을 삭제할까요?\" description=\"집중 기록과 배지가 모두 사라지고 되돌릴 수 없어요.\" alertButton={<AlertDialog.AlertButton onClick={doReset}>삭제하기</AlertDialog.AlertButton>} onClose={close} />  {/* 왼쪽 버튼 '닫기' */}\n  <Toast open={toastOpen} position=\"bottom\" onClose={closeToast} />\n  <FloatingTabBar />\n</ScreenScaffold>\n\nStates:\n- Error: 범위 밖 입력 → TextField error + 저장 버튼 disabled\n- Success: 저장 시 Toast \"설정을 저장했어요\" + generateHapticFeedback({ type: 'success' })\n\nInteractions: Chip/Switch 변경 시 tickWeak, 입력 포커스 시 SubmitFooter가 키보드 위로 밀려 올라감."
+  },
+  {
+    "id": "0011",
+    "title": "라우터 + 앱 셸 + FloatingTabBar 배선 (진입점 소유자)",
+    "epic": "4",
+    "task": {
+      "description": "src/App.tsx에서 BrowserRouter 기반 8개 라우트(/, /calendar, /history, /report, /more, /badges, /rank, /settings)를 모두 연결하고, FocusStore Provider와 광고 SDK Provider 등 전역 Provider를 최상위에 배선한다. FloatingTabBar를 4탭(타이머·캘린더·리포트·더보기)으로 구성해 모든 라우트에서 활성 탭이 컬러 틴트로 표시되게 하고, 알 수 없는 경로는 /로 리다이렉트한다. main.tsx는 @AI:ANCHOR 보호 대상이므로 절대 수정하지 않는다.",
+      "acceptance_criteria": [
+        "/, /calendar, /history, /report, /more, /badges, /rank, /settings 8개 경로 진입 시 각각 Home/Calendar/History/Report/More/Badges/Rank/Settings 컴포넌트가 렌더되고 흰 화면·콘솔 에러 0건",
+        "존재하지 않는 경로(예: /zzz) 진입 시 <Navigate to=\"/\" replace />로 타이머 홈이 렌더된다",
+        "FloatingTabBar 탭 4개(타이머 /, 캘린더 /calendar, 리포트 /report, 더보기 /more)가 표시되고 현재 pathname과 일치하는 탭만 컬러 틴트로 강조된다",
+        "FocusStore Provider가 라우트 트리 바깥을 감싸 어떤 라우트로 직접 진입해도 useFocusStore()가 예외 없이 값을 반환한다",
+        "src/main.tsx 파일은 diff에 포함되지 않는다(무수정)"
+      ],
+      "acceptance_criteria_note": ""
+    },
+    "covers": [
+      "F8-AC1",
+      "F8-AC2",
+      "F8-AC3"
+    ],
+    "files": [
+      "src/App.tsx",
+      "src/components/AppShell.tsx",
+      "src/components/RouteFallback.tsx"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "8개 라우트 수동 진입 모두 정상 렌더",
+      "FloatingTabBar 활성 탭 하이라이트가 pathname 변경에 따라 즉시 갱신",
+      "HEX 색상 리터럴 0건, main.tsx 미수정"
+    ],
+    "depends_on": [
+      "0001",
+      "0003",
+      "0004",
+      "0005",
+      "0007",
+      "0008",
+      "0009",
+      "0010"
+    ],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [
+      "react-router-dom"
+    ],
+    "ui_requirements": "전역 셸 계약: 모든 페이지는 각 페이지 패킷에서 ScreenScaffold로 감싸므로 App.tsx는 골격을 중복 렌더하지 않는다. App.tsx 구조: <FocusStoreProvider><BrowserRouter><AppShell><Routes>…</Routes></AppShell></BrowserRouter></FocusStoreProvider>. FloatingTabBar(템플릿 제공)는 AppShell에서 1회만 렌더하며 탭은 4개 — 타이머(/), 캘린더(/calendar), 리포트(/report), 더보기(/more). 활성 탭은 컬러 틴트(var(--tds-color-*)만 사용, HEX 금지). 하단 고정이므로 paddingBottom: 'calc(56px + env(safe-area-inset-bottom))' 적용. 탭 터치 타깃 ≥44×44px. /badges, /rank, /settings, /history는 탭이 없는 하위 화면이며 각 화면의 Top 뒤로가기로 복귀한다. 라우트 전환 시 스크롤 위치를 상단으로 초기화한다. TDS 컴포넌트만 사용(Top, Button 등), shadcn/MUI 금지."
+  },
+  {
+    "id": "0012",
+    "title": "온보딩 시트 · 전역 ErrorBoundary · 검수 정책 스윕",
+    "epic": "Epic 4. 통합",
+    "task": {
+      "description": "최초 실행 온보딩 BottomSheet(fs:flags:v1의 onboardingSeenAt 기준 1회 노출)와 전역 ErrorBoundary 컴포넌트, 그리고 검수 정책 스윕용 훅/유틸 파일만 생성한다. ErrorBoundary는 렌더 예외를 잡아 흰 화면 대신 재시도 버튼이 있는 안내 화면을 보여준다. 배너는 타이머 running 상태에서 렌더되지 않고 콘텐츠 최하단에만 놓이는 규칙을 공용 훅으로 제공한다. App.tsx·main.tsx는 수정하지 않는다(진입점은 0011이 이미 배선했다).",
+      "acceptance_criteria": [
+        "onboardingSeenAt이 null이면 앱 진입 후 온보딩 BottomSheet가 1회 열리고, '시작하기' 탭 시 flags에 onboardingSeenAt=Date.now()가 저장되어 재진입 시 다시 열리지 않는다",
+        "ErrorBoundary 하위에서 렌더 예외가 발생하면 흰 화면 대신 '문제가 생겼어요' 안내와 '다시 시도' TDS Button이 표시되고, 버튼 탭 시 하위 트리가 재마운트된다",
+        "useBannerVisible() 훅이 타이머 phase === 'running'이면 false를 반환해 배너가 렌더되지 않는다",
+        "전체 src 내 HEX 색상 리터럴 0건, console.error 호출 0건, 외부 앱 설치 유도/외부 링크 0건",
+        "src/App.tsx와 src/main.tsx가 diff에 포함되지 않는다"
+      ],
+      "acceptance_criteria_note": ""
+    },
+    "covers": [
+      "F8-AC4",
+      "F8-AC5",
+      "F8-AC6",
+      "F8-AC8"
+    ],
+    "files": [
+      "src/components/OnboardingSheet.tsx",
+      "src/components/ErrorBoundary.tsx",
+      "src/hooks/useBannerVisible.ts"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "온보딩 1회 노출 후 재진입 시 미노출 확인",
+      "의도적 throw로 ErrorBoundary 폴백 화면 및 재시도 동작 확인",
+      "HEX·console.error·외부 링크 0건 grep 검증"
+    ],
+    "depends_on": [],
+    "db_schema": "interface AppFlags { onboardingSeenAt: number | null; version: 1 } → localStorage key: 'fs:flags:v1'",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "OnboardingSheet: TDS BottomSheet 1개 — 제목 '집중을 쌓아볼까요?', Paragraph.Text 3줄 소개(25분 집중 → 기록 자동 저장 → 스트릭 캘린더로 확인), Spacing size={24}, 하단에 <Button variant=\"fill\" size=\"large\" display=\"block\">시작하기</Button>. 탭 시 generateHapticFeedback({ type: 'success' }) 후 flags 저장 + 닫기. 좌측 글자폭 버튼 금지. ErrorBoundary 폴백: Asset.ContentIcon + Paragraph.Text '문제가 생겼어요' / '잠시 후 다시 시도해주세요' + <Button variant=\"weak\" size=\"large\" display=\"block\">다시 시도</Button>. 색상은 var(--tds-color-*)만, 여백은 TDS Spacing(size prop 필수)만 사용하고 Tailwind/인라인 padding 금지. 문구는 해요체 능동형, Dialog 왼쪽 버튼은 '닫기'. 모든 탭 요소 ≥44×44px, 하단 고정 요소에 env(safe-area-inset-bottom) 포함."
+  }
+]
