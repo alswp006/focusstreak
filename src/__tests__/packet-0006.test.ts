@@ -15,6 +15,7 @@ const FULL_REPORT: WeeklyReport = {
   totalMin: 200,
   avgMin: 29,
   goalMetDays: 3,
+  sessionCount: 7,
   days: [
     { dayIndex: 0, dayMin: 30 },
     { dayIndex: 1, dayMin: 0 },
@@ -31,6 +32,7 @@ const EMPTY_REPORT: WeeklyReport = {
   totalMin: 0,
   avgMin: 0,
   goalMetDays: 0,
+  sessionCount: 0,
   days: Array.from({ length: 7 }, (_, dayIndex) => ({ dayIndex, dayMin: 0 })),
   tagBreakdown: {},
 };

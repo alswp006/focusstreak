@@ -4,11 +4,8 @@ import { generateHapticFeedback } from '@apps-in-toss/web-framework';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { FloatingTabBar } from '../components/FloatingTabBar';
 import { Card } from '../components/Card';
-import { SummaryHero } from '../components/SummaryHero';
-import { Amount } from '../components/Amount';
-import { MiniBar } from '../components/MiniBar';
 import { TossRewardAd } from '../components/TossRewardAd';
-import { EmptyState } from '../components/StateView';
+import { WeeklyReportResult } from '../components/WeeklyReportResult';
 import { buildWeeklyReport, type FocusSession } from '../lib/domain';
 import { toWeekKey, toDateKey, startOfWeek } from '../lib/datetime';
 import { read, write } from '../lib/storage';
@@ -20,7 +17,6 @@ const DEFAULT_GOAL_MIN_PER_DAY = 120;
 const MAX_UNLOCKED_WEEKS = 12;
 const AD_FAIL_FALLBACK_THRESHOLD = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
 
 interface ReportUnlockState {
   unlocked: Record<string, number>;
@@ -109,8 +105,7 @@ export default function Report() {
   });
   const goalMinPerDay = settings.goalMinPerDay ?? DEFAULT_GOAL_MIN_PER_DAY;
   const report = buildWeeklyReport(sessions, weekKey, goalMinPerDay);
-  const maxDayMin = Math.max(1, ...report.days.map((d) => d.dayMin));
-  const tagEntries = Object.entries(report.tagBreakdown).sort((a, b) => b[1] - a[1]);
+  const sessionCount = report.sessionCount;
 
   return (
     <ScreenScaffold
@@ -166,62 +161,7 @@ export default function Report() {
             </>
           ) : null}
 
-          <SummaryHero
-            testId="report-hero"
-            label="이번 주 총 집중"
-            value={<Amount value={report.totalMin} unit="분" typography="t1" />}
-            caption={`일 평균 ${report.avgMin}분 · 목표 달성 ${report.goalMetDays}일`}
-          />
-
-          <Spacing size={16} />
-
-          <Card testId="report-days-card">
-            {report.days.map((d) => (
-              <div
-                key={d.dayIndex}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}
-              >
-                <div style={{ width: 24 }}>
-                  <Paragraph.Text typography="st13">{DAY_LABELS[d.dayIndex]}</Paragraph.Text>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <MiniBar ratio={d.dayMin / maxDayMin} />
-                </div>
-                <div style={{ width: 52, textAlign: 'right' }}>
-                  <Amount value={d.dayMin} unit="분" typography="st13" />
-                </div>
-              </div>
-            ))}
-          </Card>
-
-          <Spacing size={16} />
-
-          {tagEntries.length > 0 ? (
-            <Card testId="report-tags-card">
-              {tagEntries.map(([tag, minutes]) => (
-                <div
-                  key={tag}
-                  style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}
-                >
-                  <Paragraph.Text typography="st13">{tag}</Paragraph.Text>
-                  <Amount value={minutes} unit="분" typography="st13" />
-                </div>
-              ))}
-            </Card>
-          ) : (
-            <EmptyState
-              icon={
-                <Asset.ContentIcon
-                  name="icon-warning-circle"
-                  alt=""
-                  style={{ width: 40, height: 40 }}
-                />
-              }
-              title="이번 주 집중 기록이 아직 없어요"
-            />
-          )}
-
-          <Spacing size={24} />
+          <WeeklyReportResult report={report} sessionCount={sessionCount} />
         </div>
       )}
 

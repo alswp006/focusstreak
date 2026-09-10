@@ -19,6 +19,7 @@ export interface WeeklyReport {
   totalMin: number;
   avgMin: number;
   goalMetDays: number;
+  sessionCount: number;
   days: Array<{
     dayIndex: number; // 0 = 월, 6 = 일
     dayMin: number;
@@ -140,12 +141,14 @@ export function buildWeeklyReport(sessions: FocusSession[], weekKey: string, goa
   const dayMinutes = new Array(7).fill(0) as number[];
   const tagBreakdown: Record<string, number> = {};
   let totalMin = 0;
+  let sessionCount = 0;
 
   for (const session of sessions) {
     const dateKey = sessionDateKey(session);
     const dayIndex = weekDates.indexOf(dateKey);
     if (dayIndex === -1) continue;
 
+    sessionCount += 1;
     const minutes = session.minutes ?? 0;
     dayMinutes[dayIndex] += minutes;
     totalMin += minutes;
@@ -161,6 +164,7 @@ export function buildWeeklyReport(sessions: FocusSession[], weekKey: string, goa
     totalMin,
     avgMin,
     goalMetDays,
+    sessionCount,
     days: dayMinutes.map((dayMin, dayIndex) => ({ dayIndex, dayMin })),
     tagBreakdown,
   };
