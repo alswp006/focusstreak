@@ -6,7 +6,7 @@
  */
 
 /** 일별 타이머 기록 (구현: 패킷 heal-1-02) */
-export type Record = { id: string; date: string; tagId: string; durationMs: number; note: string };
+export type FocusRecord = { id: string; date: string; tagId: string; durationMs: number; note: string };
 
 /** 현재 진행 중인 세션 상태 (구현: 패킷 heal-1-02) */
 export type SessionData = { startTime: number; elapsedMs: number; status: 'idle' | 'running' | 'paused' };
@@ -39,10 +39,10 @@ export type getSessionFn = () => Promise<SessionData | null>;
 export type saveSessionFn = (session: SessionData) => Promise<void>;
 
 /** 날짜 범위 내 기록 조회 (구현: 패킷 heal-1-02) */
-export type getRecordsFn = (startDate?: string, endDate?: string) => Promise<Record[]>;
+export type getRecordsFn = (startDate?: string, endDate?: string) => Promise<FocusRecord[]>;
 
-/** 새 기록 저장, 생성된 Record 반환 (구현: 패킷 heal-1-02) */
-export type saveRecordFn = (record: Omit<Record, 'id'>) => Promise<Record>;
+/** 새 기록 저장, 생성된 FocusRecord 반환 (구현: 패킷 heal-1-02) */
+export type saveRecordFn = (record: Omit<FocusRecord, 'id'>) => Promise<FocusRecord>;
 
 /** 기록 삭제 (구현: 패킷 heal-1-02) */
 export type deleteRecordFn = (id: string) => Promise<void>;
