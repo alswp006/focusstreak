@@ -121,19 +121,17 @@ export default function Report() {
         />
       }
     >
-      <Paragraph.Text typography="t6" color="var(--adaptiveGrey800)">
-        {weekRangeLabel}
-      </Paragraph.Text>
+      <div style={{ paddingLeft: 8 }}>
+        <Paragraph.Text typography="t6" color="var(--adaptiveGrey700)">
+          {weekRangeLabel}
+        </Paragraph.Text>
+      </div>
 
       <Spacing size={24} />
 
       {locked ? (
         <Card testId="report-lock-card">
-          <Asset.ContentIcon
-            name="icon-warning-circle"
-            alt=""
-            style={{ width: 40, height: 40 }}
-          />
+          <Asset.ContentIcon name="icon-warning-circle" alt="" style={{ width: 40, height: 40 }} />
           <Spacing size={12} />
           <Paragraph.Text typography="t4">이번 주 집중 리포트가 준비됐어요</Paragraph.Text>
           <Spacing size={4} />

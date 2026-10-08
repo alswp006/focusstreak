@@ -106,7 +106,7 @@ export default function Settings() {
         <Top
           title={<Top.TitleParagraph>설정</Top.TitleParagraph>}
           right={
-            <Button variant="weak" size="small" onClick={() => navigate(-1)}>
+            <Button variant="weak" size="medium" onClick={() => navigate(-1)}>
               닫기
             </Button>
           }

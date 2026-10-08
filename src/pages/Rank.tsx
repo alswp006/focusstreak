@@ -7,9 +7,9 @@ import {
   Spacing,
   ListRow,
   TextField,
+  Asset,
   BottomSheet,
   Toast,
-  Asset,
 } from '@toss/tds-mobile';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { SummaryHero } from '../components/SummaryHero';
@@ -187,7 +187,7 @@ export default function Rank() {
         <Top
           title={<Top.TitleParagraph>친구 랭킹</Top.TitleParagraph>}
           right={
-            <Button variant="weak" size="small" onClick={() => navigate(-1)}>
+            <Button variant="weak" size="medium" onClick={() => navigate(-1)}>
               닫기
             </Button>
           }

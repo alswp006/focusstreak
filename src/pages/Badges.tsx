@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
+import { Award, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Top, Button, Paragraph, Spacing, Asset } from '@toss/tds-mobile';
+import { Top, Button, Paragraph, Spacing } from '@toss/tds-mobile';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { SummaryHero } from '../components/SummaryHero';
 import { Card } from '../components/Card';
@@ -55,7 +56,7 @@ export default function Badges() {
         <Top
           title={<Top.TitleParagraph>배지</Top.TitleParagraph>}
           right={
-            <Button variant="weak" size="small" onClick={() => navigate(-1)}>
+            <Button variant="weak" size="medium" onClick={() => navigate(-1)}>
               닫기
             </Button>
           }
@@ -85,18 +86,6 @@ export default function Badges() {
       ) : null}
       <Spacing size={16} />
 
-      {unlocked.size === 0 ? (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Asset.ContentIcon name="icon-warning-circle" alt="" style={{ width: 32, height: 32 }} />
-            <Paragraph.Text typography="t6">
-              첫 집중을 시작하면 배지가 열려요
-            </Paragraph.Text>
-          </div>
-          <Spacing size={16} />
-        </>
-      ) : null}
-
       <div
         data-testid="badge-grid"
         style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}
@@ -107,11 +96,17 @@ export default function Badges() {
             <Card
               key={badge.id}
               testId="badge-card"
-              style={{ opacity: isUnlocked ? 1 : 0.7 }}
+              style={{ opacity: isUnlocked ? 1 : 0.85 }}
             >
+              {isUnlocked ? (
+                <Award size={28} aria-hidden="true" color="var(--adaptiveBlue500)" />
+              ) : (
+                <Lock size={28} aria-hidden="true" color="var(--adaptiveGrey500)" />
+              )}
+              <Spacing size={8} />
               <Paragraph.Text typography="t5">{badge.title}</Paragraph.Text>
               <Spacing size={4} />
-              <Paragraph.Text typography="st13">
+              <Paragraph.Text typography="t7" color="var(--adaptiveGrey700)">
                 {isUnlocked ? '획득 완료' : BADGE_CONDITION[badge.id]}
               </Paragraph.Text>
             </Card>

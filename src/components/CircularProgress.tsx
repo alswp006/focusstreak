@@ -16,7 +16,8 @@ export function CircularProgress({
   strokeWidth?: number;
   testId?: string;
 }) {
-  const clamped = Math.max(0, Math.min(1, ratio));
+  // 시작 전(0)에도 진행 아크의 시작점이 보이도록 최소 호를 남긴다.
+  const clamped = Math.max(0.02, Math.min(1, ratio));
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - clamped);

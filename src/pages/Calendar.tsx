@@ -133,10 +133,10 @@ export default function Calendar() {
       }
     >
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <Button variant="weak" size="small" onClick={prevMonth}>
+        <Button variant="weak" size="medium" onClick={prevMonth}>
           이전 달
         </Button>
-        <Button variant="weak" size="small" onClick={nextMonth} disabled={isThisMonth}>
+        <Button variant="weak" size="medium" onClick={nextMonth} disabled={isThisMonth}>
           다음 달
         </Button>
       </div>
@@ -175,6 +175,9 @@ export default function Calendar() {
                   fontSize: 12,
                   color: cell.level >= 2 ? 'var(--adaptiveBackground)' : 'var(--adaptiveGrey800)',
                   backgroundColor: levelBackgroundColor(cell.level),
+                  fontWeight: cell.dateKey === toDateKey(Date.now()) ? 700 : 400,
+                  outline: cell.dateKey === toDateKey(Date.now()) ? '2px solid var(--adaptiveBlue500)' : 'none',
+                  outlineOffset: -2,
                 }}
               >
                 {Number(cell.dateKey.slice(8))}

@@ -109,7 +109,7 @@ export default function History() {
         <Top
           title={<Top.TitleParagraph>{`${m}월 ${d}일 기록`}</Top.TitleParagraph>}
           right={
-            <Button variant="weak" size="small" onClick={() => navigate(-1)}>
+            <Button variant="weak" size="medium" onClick={() => navigate(-1)}>
               닫기
             </Button>
           }
