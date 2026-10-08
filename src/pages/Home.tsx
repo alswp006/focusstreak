@@ -36,6 +36,14 @@ const PHASE_LABEL: Record<Phase, string> = {
   break: '잠깐 쉬어가요',
 };
 
+const SHORTCUTS: Array<{ label: string; path: string }> = [
+  { label: '캘린더', path: '/calendar' },
+  { label: '리포트', path: '/report' },
+  { label: '배지', path: '/badges' },
+  { label: '랭킹', path: '/rank' },
+  { label: '더보기', path: '/more' },
+];
+
 function formatClock(ms: number): string {
   const totalSec = Math.max(0, Math.round(ms / 1000));
   const min = Math.floor(totalSec / 60);
@@ -217,6 +225,28 @@ export default function Home() {
           </Card>
         )}
       </div>
+
+      <Spacing size={24} />
+
+      {/* 홈은 하단 SubmitFooter가 있어 탭바를 못 쓴다 — 다른 화면 진입점은 카드 안 버튼으로 둔다. */}
+      <Card testId="home-shortcuts">
+        <Paragraph.Text typography="st11" color="var(--adaptiveGrey700)">
+          기록 둘러보기
+        </Paragraph.Text>
+        <Spacing size={12} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {SHORTCUTS.map((item) => (
+            <Button
+              key={item.path}
+              variant="weak"
+              display="block"
+              onClick={() => navigate(item.path)}
+            >
+              {item.label}
+            </Button>
+          ))}
+        </div>
+      </Card>
 
       <Spacing size={24} />
 

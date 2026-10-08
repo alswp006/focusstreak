@@ -62,13 +62,115 @@ export type getWeeklyStatsFn = (weekStart: string) => Promise<WeeklyStats>;
 
 ## Shared Types Contract (IMPORT these, do NOT redefine)
 ```typescript
-// Domain types — add your app-specific types here
+/**
+ * 전 화면이 공유하는 도메인 타입·스토리지 키 계약.
+ *
+ * 단일 정의 원칙: 이미 `src/lib/domain.ts`가 구현과 함께 들고 있는 집계 타입
+ * (FocusSession / StreakState / BadgeId)은 여기서 다시 선언하지 않고 그대로 re-export한다.
+ * 화면은 `@/lib/types` 하나만 import하면 되고, 정의는 여전히 한 곳에만 있다.
+ */
+
+export type { FocusSession, StreakState, BadgeId, BadgeInfo, WeeklyReport } from "./domain";
+
+import type { BadgeId } from "./domain";
 
 /** navigate(path, { state }) 페이로드 계약. 화면은 이 타입으로 캐스팅해 state를 주고받는다. */
 export type RouteState = {
   "/history": { dateKey: string };
 };
 
+/** 집중 세션 분류 태그. 화면 표시는 TAG_LABEL을 쓴다. */
+export type FocusTag = "study" | "work" | "exercise";
+
+export const TAG_LABEL: Record<FocusTag, string> = {
+  study: "공부",
+  work: "업무",
+  exercise: "운동",
+};
+
+/** 타이머/목표 설정 (fs:settings:v1) */
+export interface TimerSettings {
+  /** 집중 길이(분). 5 ≤ v ≤ 60 */
+  focusMin: number;
+  /** 휴식 길이(분). 1 ≤ v ≤ 30 */
+  breakMin: number;
+  /** 하루 목표 집중 분. 10 ≤ v ≤ 720 */
+  goalMinPerDay: number;
+  defaultTag: FocusTag;
+  /** 종료 시 in-app 사운드 */
+  soundEnabled: boolean;
+  version: 1;
+}
+
+export const DEFAULT_SETTINGS: TimerSettings = {
+  focusMin: 25,
+  breakMin: 5,
+  goalMinPerDay: 120,
+  defaultTag: "study",
+  soundEnabled: true,
+  version: 1,
+};
+
+/** 설정 입력 검증 범위 — Settings 화면과 도메인이 함께 참조한다. */
+export const SETTINGS_RANGE = {
+  focusMin: { min: 5, max: 60 },
+  breakMin: { min: 1, max: 30 },
+  goalMinPerDay: { min: 10, max: 720 },
+} as const;
+
+/** 획득 배지 (fs:badges:v1). unlocked: BadgeId → 획득 시각(epoch ms), 미획득 키는 부재 */
+export interface BadgeState {
+  unlocked: Partial<Record<BadgeId, number>>;
+  version: 1;
+}
+
+/** 로컬 공유 랭킹 참가자 (fs:friends:v1) */
+export interface FriendEntry {
+  id: string;
+  /** 1~10자 */
+  nickname: string;
+  /** 'YYYY-Www' */
+  weekKey: string;
+  focusMin: number;
+  addedAt: number;
+}
+
+/** 주간 리포트 광고 해제 기록 (fs:report_unlock:v1) */
+export interface ReportUnlockState {
+  /** weekKey → 해제 시각(epoch ms) */
+  unlocked: Record<string, number>;
+  /** weekKey → 연속 광고 실패 횟수 */
+  adFailCount: Record<string, number>;
+  version: 1;
+}
+
+/** 앱 전역 플래그 (fs:flags:v1) */
+export interface AppFlags {
+  /** 온보딩을 본 시각(epoch ms). 아직이면 null */
+  onboardingSeenAt: number | null;
+  version: 1;
+}
+
+// ── 스토리지 키 (localStorage) ─────────────────────────────────────────────
+// 키 문자열을 화면마다 다시 적지 마라 — 오타 하나가 조용히 다른 저장소를 가리킨다.
+export const SETTINGS_KEY = "fs:settings:v1";
+export const SESSIONS_KEY = "fs:sessions:v1";
+export const STREAK_KEY = "fs:streak:v1";
+export const BADGES_KEY = "fs:badges:v1";
+export const FRIENDS_KEY = "fs:friends:v1";
+/** 랭킹 코드에 담을 내 표시 이름 */
+export const NICKNAME_KEY = "fs:nickname:v1";
+export const REPORT_UNLOCK_KEY = "fs:report_unlock:v1";
+export const FLAGS_KEY = "fs:flags:v1";
+
+// ── KST 날짜 유틸 시그니처 (구현: src/lib/datetime.ts) ─────────────────────
+/** epoch ms → 'YYYY-MM-DD' (Asia/Seoul 고정) */
+export type ToDateKeyFn = (timestamp: number) => string;
+/** epoch ms → 'YYYY-Www' ISO 주차 (Asia/Seoul 고정) */
+export type ToWeekKeyFn = (timestamp: number) => string;
+/** 'YYYY-MM-DD'가 실제 존재하는 날짜인지 */
+export type IsValidDateKeyFn
+// ...truncated
 ```
 
 ## Existing Codebase (import and use these — do NOT recreate)
@@ -93,9 +195,12 @@ export type RouteState = {
     WeeklyReportResult.tsx
   hooks/
   lib/
+    analytics.ts
     contract.ts
     datetime.ts
     domain.ts
+    review.ts
+    share.ts
     storage.ts
     types.ts
     utils.ts
@@ -117,11 +222,14 @@ export type RouteState = {
   vite-env.d.ts
 
 ### Exports (src/lib/)
+- analytics.ts: export type LogFields = Record<string, string | number | boolean | null>; export const DWELL_MS = 3000; export function fireAndForget(call: () => unknown): void; export function logScreen(page: string, extra?: LogFields): void; export function logClick(name: string, extra?: LogFields): void; export function logImpression(name: string, extra?: LogFields): void; export function useScreenLog(page: string): void
 - contract.ts: export type FocusRecord =; export type SessionData =; export type Badge =; export type Tag =; export type WeeklyStats =; export type RouteConfig =; export type getKSTNowFn = () => number; export type getKSTDateFn = (timestamp?: number) => string
 - datetime.ts: export function toDateKey(timestamp: number): string; export function isValidDateKey(value: string): boolean; export function toWeekKey(timestamp: number): string; export function startOfWeek(dateKey: string): number; export function addMonths(timestamp: number, months: number): number; export function isFutureMonth(timestamp: number): boolean
 - domain.ts: export interface FocusSession; export interface StreakState; export interface WeeklyReport; export type BadgeId = | "first-step" | "streak-3" | "streak-7" | "streak-30" | "total-10h" | "total-50h" | "deep-focus"; export interface BadgeInfo; export function getDayLevel(totalMin: number, goalMinPerDay: number): 0 | 1 | 2 | 3; export function sumMinutesByDate(sessions: FocusSession[]): Record<string, number>; export function computeStreak(sessions: FocusSession[], goalMinPerDay: number): StreakState
+- review.ts: export function requestReviewOnce(key: string = REVIEW_REQUESTED_KEY): void
+- share.ts: export interface ShareAppOptions; export async function shareApp(opts: ShareAppOptions): Promise<void>
 - storage.ts: export function getItem<T>(key: string): T | null; export function setItem<T>(key: string, value: T): void; export function removeItem(key: string): void; export function read<T>(key: string, fallback: T): T; export function write<T>(key: string, value: T): void; export function clearAllFocusData(): void
-- types.ts: export type RouteState =
+- types.ts: export type RouteState =; export type FocusTag = "study" | "work" | "exercise"; export const TAG_LABEL: Record<FocusTag, string> =; export interface TimerSettings; export const DEFAULT_SETTINGS: TimerSettings =; export const SETTINGS_RANGE =; export interface BadgeState; export interface FriendEntry
 - utils.ts: export function cn(...classes: (string | boolean | undefined | null)[]): string; export function formatNumber(n: number): string; export function formatCurrency(n: number, currency = 'KRW'): string
 
 ### Components (src/components/)
@@ -144,14 +252,26 @@ export type RouteState = {
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
-- heal-1-02: 공용 스토리지·도메인 레이어 — localStorage 어댑터와 KST 날짜/집계 순수 함수 (files: src/lib/storage.ts, src/lib/datetime.ts, src/lib/domain.ts)
+- 0001: S1 타이머 홈 — 히어로 + 타이머 카드 + 1차 액션 (files: src/pages/Home.tsx, src/components/CircularProgress.tsx)
+- 0002: S1 홈 — 태그 저장 BottomSheet · 포기 확인 · 배지 축하 (files: src/pages/Home.tsx, src/components/TagSheet.tsx, src/components/BadgeCelebrationSheet.tsx)
 - 0003: S2 캘린더 화면 (files: src/pages/Calendar.tsx)
 - 0004: S3 일별 기록 화면 (state 방어 · 필터 · 수정/삭제) (files: src/pages/History.tsx)
 - 0005: S4 주간 리포트 — 잠금 상태 & 리워드 광고 게이트 (files: src/pages/Report.tsx)
 - 0006: S4 주간 리포트 — 결과 카드 (히어로 · 추이 · 태그 비중) (files: src/components/WeeklyReportResult.tsx, src/pages/Report.tsx)
+- 0007: [부가] S5 더보기 화면 (files: src/pages/More.tsx)
+- 0008: [부가] S6 배지 화면 (files: src/pages/Badges.tsx)
+- 0009: [부가] S7 친구 랭킹 화면 (files: src/components/MonthNav.tsx, src/components/SummaryHero.tsx, src/components/Sparkline.tsx, src/components/MiniBar.tsx, src/components/RecentRecordsCard.tsx, src/components/AddRecordCTA.tsx, src/components/AdSlotBanner.tsx)
+- 0010: [부가] S8 설정 화면 (검증 · 저장 · 초기화) (files: src/pages/RecordNew.tsx, src/pages/RecordEdit.tsx)
+- 0011: 라우터 + 앱 셸 + FloatingTabBar 배선 (진입점 소유자) (files: src/App.tsx, src/components/AppShell.tsx, src/components/RouteFallback.tsx)
+- 0012: 온보딩 시트 · 전역 ErrorBoundary · 검수 정책 스윕 (files: src/components/OnboardingSheet.tsx, src/components/ErrorBoundary.tsx, src/hooks/useBannerVisible.ts)
+- heal-1-01: 진입점 배선 복구 — 라우터 + ScreenScaffold 셸 + FloatingTabBar + 전 라우트 플레이스홀더 (files: .gitignore, src/main.tsx, src/App.tsx, src/components/FloatingTabBar.tsx, src/lib/types.ts, src/pages/Home.tsx, src/pages/Calendar.tsx, src/pages/History.tsx, src/pages/Report.tsx, src/pages/More.tsx, src/pages/Badges.tsx, src/pages/Rank.tsx, src/pages/Settings.tsx)
+- heal-1-02: 공용 스토리지·도메인 레이어 — localStorage 어댑터와 KST 날짜/집계 순수 함수 (files: src/lib/storage.ts, src/lib/datetime.ts, src/lib/domain.ts)
 - heal-1-03: S1 타이머 홈 화면 실구현 (플레이스홀더 대체) (files: src/pages/Home.tsx, src/components/CircularProgress.tsx)
 
 ## Available exports from existing files
+// src/App.tsx
+export default function App() {
+
 // src/components/AdSlot.tsx
 export function AdSlot({ adGroupId, className, variant, theme }: AdSlotProps) {
 
@@ -171,11 +291,15 @@ export function CircularProgress({
 // src/components/CountUp.tsx
 export function CountUp({
 
+// src/components/FloatingTabBar.tsx
+export type TabItem = {
+export function FloatingTabBar({ items }: { items: TabItem[] }) {
+
 // src/components/MiniBar.tsx
 export function MiniBar({
 
 // src/components/PageShell.tsx
-export function PageShell({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+export function PageShell({
 
 // src/components/ScreenScaffold.tsx
 export function ScreenScaffold({
@@ -200,25 +324,27 @@ export function TossRewardAd({
 // src/components/WeeklyReportResult.tsx
 export function WeeklyReportResult({
 
+// src/lib/analytics.ts
+export type LogFields = Record<string, string | number | boolean | null>;
+export const DWELL_MS = 3000;
+export function fireAndForget(call: () => unknown): void {
+export function logScreen(page: string, extra?: LogFields): void {
+export function logClick(name: string, extra?: LogFields): void {
+export function logImpression(name: string, extra?: LogFields): void {
+export function useScreenLog(page: string): void {
+
 // src/lib/contract.ts
 export type FocusRecord = { id: string; date: string; tagId: string; durationMs: number; note: string };
 export type SessionData = { startTime: number; elapsedMs: number; status: 'idle' | 'running' | 'paused' };
-export type Badge = { id: string; name: string; description: string; achieved: boolean; achievedAt?: string };
-export type Tag = { id: string; name: string; colorHex: string };
-export type WeeklyStats = { totalDurationMs: number; dayStats: Record<string, number>; tagBreakdown: Record<string, number> };
-export type RouteConfig = { path: string; name: string; component: React.ComponentType<any>; icon?: string };
-export type getKSTNowFn = () => number;
-export type getKSTDateFn = (timestamp?: number) => string;
-export type formatDurationFn = (ms: number) => string;
-export type getSessionFn = 
+export type Badge = { id: string; name: strin
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 
-Available topics: deploy(3), general(12), testing(1), ui(1)
+Available topics: deploy(4), general(14), testing(2), ui(3)
 
 Key lessons (verify against actual code before applying):
+- [general] 진입점 라우터 배선은 맨 끝에 두지 말고 기반 패킷 직후 플레이스홀더 페이지와 함께 먼저 병합하라. 화면 패킷은 그 플레이스홀더를 교체하게 해서, 언제 중단돼도 병합된 화면에 도달할 수 있게 하라. (60% · 타 앱 1회 — 맹신 금지)
+- [general] 파일 생성 전 디렉토리 구조 확인 — mkdir -p로 경로 보장 (60% · 타 앱 1회 — 맹신 금지)
 - [general] 화면·라우팅 등 소비자 모듈은 그것이 import하는 생산자 모듈이 병합된 뒤에만 병합하고, 순서를 지킬 수 없으면 소비자 병합과 동시에 최소 플레이스홀더를 만들어 매 병합 직후 타입체크와 빌드가 항상 통과하도록 유지하라. (60% · 타 앱 1회 — 맹신 금지)
 - [general] 전역 라우팅·탭바·Provider 배선은 개별 화면보다 먼저(초반 20% 안에) 완료하고 미구현 화면은 스텁 라우트로 연결해, 시간 예산이 소진돼도 앱이 항상 실행 가능한 상태를 유지하라. (60% · 타 앱 1회 — 맹신 금지)
 - [general] 저장·데이터 접근 등 기반 계층 패킷은 이를 import 하는 화면 패킷보다 반드시 먼저 완료·병합하고, 미완료면 상위 화면 패킷 병합을 차단하라 — 빈 기반 모듈 하나가 전 라우트 스모크를 무너뜨린다. (60% · 타 앱 1회 — 맹신 금지)
-- [general] 외부에서 들어온 모든 값(라우터 state, 로컬 저장소, 부분 입력 폼)은 사용 직전에 배열·객체 기본값으로 정규화하고, 테이블/맵 조회 결과는 존재 확인 후에만 하위 속성이나 length에 접근하라. (60% · 타 앱 1회 — 맹신 금지)
-- [general] 의존 그래프 최하층의 타입·계약 파일은 런타임 코드 0줄의 순수 선언으로 가장 먼저 단독 타입체크를 통과시키고, 파일 생성은 셸 명령이 아닌 허용된 편집 도구로만 하게 강제하라. (60% · 타 앱 1회 — 맹신 금지)
