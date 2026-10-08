@@ -11,6 +11,7 @@ import { EmptyState } from '../components/StateView';
 import { getDayLevel, sumMinutesByDate, computeStreak, type FocusSession } from '../lib/domain';
 import { toDateKey } from '../lib/datetime';
 import { read } from '../lib/storage';
+import { logClick } from '../lib/analytics';
 
 const SESSIONS_KEY = 'fs:sessions:v1';
 const SETTINGS_KEY = 'fs:settings:v1';
@@ -67,6 +68,7 @@ export default function Calendar() {
   const isThisMonth = viewYear === todayYear && viewMonth === todayMonth;
 
   function prevMonth() {
+    logClick('calendar_prev_month');
     setViewMonth((m) => {
       if (m === 1) {
         setViewYear((y) => y - 1);
@@ -78,6 +80,7 @@ export default function Calendar() {
 
   function nextMonth() {
     if (isThisMonth) return;
+    logClick('calendar_next_month');
     setViewMonth((m) => {
       if (m === 12) {
         setViewYear((y) => y + 1);
@@ -111,6 +114,7 @@ export default function Calendar() {
   );
 
   function goToDate(dateKey: string) {
+    logClick('calendar_date');
     navigate('/history', { state: { dateKey } });
   }
 

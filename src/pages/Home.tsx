@@ -11,6 +11,8 @@ import { SubmitFooter } from '../components/BottomCTA';
 import { AdSlot } from '../components/AdSlot';
 import { CircularProgress } from '../components/CircularProgress';
 import { read } from '../lib/storage';
+import { logClick } from '../lib/analytics';
+import { requestReviewOnce } from '../lib/review';
 import { toDateKey } from '../lib/datetime';
 import type { FocusSession } from '../lib/domain';
 
@@ -135,6 +137,7 @@ export default function Home() {
         : FOCUS_DURATION_MS;
 
   function handlePrimary() {
+    logClick('timer_primary', { phase });
     if (phase === 'idle' || phase === 'break') {
       setEndsAt(Date.now() + FOCUS_DURATION_MS);
       setPhase('running');
@@ -144,6 +147,8 @@ export default function Home() {
       const remaining = endsAt != null ? Math.max(0, endsAt - Date.now()) : FOCUS_DURATION_MS;
       if (remaining <= 0) {
         onSessionEnd({ durationMs: FOCUS_DURATION_MS });
+        // 집중 한 판을 끝까지 마친 직후 — 성공을 본 시점이다.
+        requestReviewOnce();
         setEndsAt(null);
         setPhase('idle');
         return;
@@ -240,7 +245,10 @@ export default function Home() {
               key={item.path}
               variant="weak"
               display="block"
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                logClick('home_shortcut', { to: item.path });
+                navigate(item.path);
+              }}
             >
               {item.label}
             </Button>

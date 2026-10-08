@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Top, Button, Paragraph, Spacing, Asset } from '@toss/tds-mobile';
 import { ScreenScaffold } from '../components/ScreenScaffold';
@@ -9,6 +10,8 @@ import { computeStreak, evaluateBadges, BADGE_DEFS } from '../lib/domain';
 import type { BadgeId, FocusSession } from '../lib/types';
 import { SESSIONS_KEY, SETTINGS_KEY, DEFAULT_SETTINGS } from '../lib/types';
 import { read } from '../lib/storage';
+import { logClick, logImpression } from '../lib/analytics';
+import { shareApp } from '../lib/share';
 
 /** 배지별 달성 조건 안내 문구 — 미획득 배지에 무엇을 하면 열리는지 보여준다. */
 const BADGE_CONDITION: Record<BadgeId, string> = {
@@ -33,6 +36,18 @@ export default function Badges() {
   const streak = computeStreak(sessions, goalMinPerDay);
   const unlocked = new Set<BadgeId>(evaluateBadges(sessions, streak));
   const total = BADGE_DEFS.length;
+
+  useEffect(() => {
+    logImpression('badge_hero');
+  }, []);
+
+  function handleShare() {
+    logClick('badge_share', { unlocked: unlocked.size });
+    void shareApp({
+      message: `포커스스트릭에서 배지 ${unlocked.size}개를 모았어요`,
+      path: '/badges',
+    });
+  }
 
   return (
     <ScreenScaffold
@@ -60,6 +75,14 @@ export default function Badges() {
 
       <Spacing size={12} />
       <MiniBar ratio={total === 0 ? 0 : unlocked.size / total} />
+      {unlocked.size > 0 ? (
+        <>
+          <Spacing size={12} />
+          <Button variant="weak" display="block" onClick={handleShare}>
+            획득한 배지 공유하기
+          </Button>
+        </>
+      ) : null}
       <Spacing size={16} />
 
       {unlocked.size === 0 ? (
