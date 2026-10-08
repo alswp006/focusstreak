@@ -166,7 +166,7 @@ export default function Settings() {
         </Card>
 
         <Spacing size={16} />
-        <Paragraph.Text typography="st13">
+        <Paragraph.Text typography="t7" color="var(--adaptiveGrey800)">
           설정은 다음 집중부터 적용돼요. 목표를 바꾸면 연속 기록도 새 기준으로 다시 계산돼요.
         </Paragraph.Text>
         <Spacing size={120} />

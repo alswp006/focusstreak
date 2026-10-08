@@ -152,8 +152,13 @@ export default function Calendar() {
 
       <Spacing size={24} />
 
-      <Card testId="calendar-card">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
+      <Card testId="calendar-card" style={{ padding: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 2 }}>
+          {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
+            <span key={d} style={{ textAlign: 'center', fontSize: 12, color: 'var(--adaptiveGrey700)' }}>
+              {d}
+            </span>
+          ))}
           {cells.map((cell, idx) =>
             cell ? (
               <button
@@ -167,9 +172,13 @@ export default function Calendar() {
                   minHeight: 44,
                   borderRadius: 8,
                   border: 'none',
+                  fontSize: 12,
+                  color: cell.level >= 2 ? 'var(--adaptiveBackground)' : 'var(--adaptiveGrey800)',
                   backgroundColor: levelBackgroundColor(cell.level),
                 }}
-              />
+              >
+                {Number(cell.dateKey.slice(8))}
+              </button>
             ) : (
               <div key={`blank-${idx}`} aria-hidden="true" style={{ minWidth: 44, minHeight: 44 }} />
             ),
@@ -180,7 +189,7 @@ export default function Calendar() {
       <Spacing size={12} />
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Paragraph.Text typography="st13" color="var(--adaptiveGrey700)">
+        <Paragraph.Text typography="t7" color="var(--adaptiveGrey800)">
           적음
         </Paragraph.Text>
         {([0, 1, 2, 3] as const).map((level) => (
@@ -195,7 +204,7 @@ export default function Calendar() {
             }}
           />
         ))}
-        <Paragraph.Text typography="st13" color="var(--adaptiveGrey700)">
+        <Paragraph.Text typography="t7" color="var(--adaptiveGrey800)">
           목표 달성
         </Paragraph.Text>
       </div>

@@ -107,7 +107,7 @@ export default function Badges() {
             <Card
               key={badge.id}
               testId="badge-card"
-              style={{ opacity: isUnlocked ? 1 : 0.45 }}
+              style={{ opacity: isUnlocked ? 1 : 0.7 }}
             >
               <Paragraph.Text typography="t5">{badge.title}</Paragraph.Text>
               <Spacing size={4} />

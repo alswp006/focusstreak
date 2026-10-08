@@ -82,6 +82,7 @@ export default function More() {
           <ListRow
             key={menu.testId}
             data-testid={menu.testId}
+            withArrow
             onClick={menu.onClick}
             contents={<ListRow.Texts type="2RowTypeA" top={menu.top} bottom={menu.bottom} />}
           />
@@ -90,7 +91,7 @@ export default function More() {
 
       <Spacing size={16} />
 
-      <Paragraph.Text typography="st13">
+      <Paragraph.Text typography="t7" color="var(--adaptiveGrey800)">
         기록은 이 기기에만 저장돼요. 앱을 지우면 함께 사라져요.
       </Paragraph.Text>
 

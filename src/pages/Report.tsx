@@ -121,8 +121,8 @@ export default function Report() {
         />
       }
     >
-      <Paragraph.Text typography="st13" color="var(--adaptiveGrey700)">
-        {`${weekKey} · ${weekRangeLabel}`}
+      <Paragraph.Text typography="t6" color="var(--adaptiveGrey800)">
+        {weekRangeLabel}
       </Paragraph.Text>
 
       <Spacing size={24} />

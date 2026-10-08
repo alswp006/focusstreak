@@ -175,7 +175,7 @@ export default function Home() {
         <Top
           title={<Top.TitleParagraph>포커스스트릭</Top.TitleParagraph>}
           right={
-            <Button variant="weak" size="small" onClick={() => navigate('/settings')}>
+            <Button variant="weak" size="medium" onClick={() => navigate('/settings')}>
               설정
             </Button>
           }
@@ -221,7 +221,7 @@ export default function Home() {
                   {formatClock(remainingMs)}
                 </span>
               </Paragraph.Text>
-              <Paragraph.Text typography="st13" color="var(--adaptiveGrey700)">
+              <Paragraph.Text typography="t6" color="var(--adaptiveGrey800)">
                 {PHASE_LABEL[phase]}
               </Paragraph.Text>
             </div>
