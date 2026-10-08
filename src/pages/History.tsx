@@ -194,6 +194,7 @@ export default function History() {
         open={editingSession != null}
         onClose={() => setEditingSession(null)}
         header={<BottomSheet.Header>태그 수정</BottomSheet.Header>}
+        cta={<BottomSheet.CTA onClick={saveEdit}>저장</BottomSheet.CTA>}
       >
         <Chip wrap>
           {TAGS.map((tag) => (
@@ -209,10 +210,6 @@ export default function History() {
             </ChipItem>
           ))}
         </Chip>
-        <Spacing size={16} />
-        <Button variant="fill" display="block" onClick={saveEdit}>
-          저장
-        </Button>
       </BottomSheet>
 
       <AlertDialog

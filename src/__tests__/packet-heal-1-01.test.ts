@@ -174,7 +174,7 @@ describe("진입점 배선 복구 — 라우터 + ScreenScaffold 셸 + FloatingT
     );
     // Home 화면의 고유 타이틀 텍스트가 보이면 홈으로 리다이렉트된 것 (History의 "/history"는
     // 별도 고유 텍스트를 쓰므로 혼동되지 않는다)
-    expect(screen.getByText("FocusStreak")).toBeInTheDocument();
+    expect(screen.getByText("포커스스트릭")).toBeInTheDocument();
     expect(container.querySelector('[data-testid="today-hero"]')).not.toBeNull();
   });
 

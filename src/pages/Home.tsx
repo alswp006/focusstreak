@@ -168,7 +168,7 @@ export default function Home() {
     <ScreenScaffold
       top={
         <Top
-          title={<Top.TitleParagraph>FocusStreak</Top.TitleParagraph>}
+          title={<Top.TitleParagraph>포커스스트릭</Top.TitleParagraph>}
           right={
             // 아이콘 name="iconSettingRegular"는 TDS 아이콘 CDN에서 403("Wrong URL")을 받아
             // 컴포넌트가 throw → 홈에서 console.error가 남았다(검수 반려 사유). 텍스트 버튼으로 대체.

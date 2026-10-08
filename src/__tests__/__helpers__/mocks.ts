@@ -149,9 +149,13 @@ export function mockTds() {
       React.createElement("div", { "data-slot": "bottom-cta" }, children),
 
     BottomSheet: Object.assign(
-      ({ children, open }: any) =>
-        open ? React.createElement("div", { role: "dialog" }, children) : null,
-      { Header: ({ children }: any) => React.createElement("div", null, children) },
+      ({ children, open, header, cta }: any) =>
+        open ? React.createElement("div", { role: "dialog" }, header, children, cta) : null,
+      {
+        Header: ({ children }: any) => React.createElement("div", null, children),
+        CTA: ({ children, onClick, disabled }: any) =>
+          React.createElement("button", { onClick, disabled }, children),
+      },
     ),
 
     // 실제 Chip은 그룹 컨테이너(div)이고, 개별 칩은 ChipItem(button)이다 — .d.ts 검증.

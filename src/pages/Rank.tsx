@@ -216,6 +216,7 @@ export default function Rank() {
       <Card testId="rank-nickname-card">
         <TextField
           variant="box"
+          labelOption="sustain"
           label="코드에 표시될 이름"
           // box variant는 빈 칸에서 라벨이 숨는다 → placeholder가 무엇을 넣는 칸인지 말해야 한다
           placeholder="이름 (예: 민재)"
@@ -278,6 +279,7 @@ export default function Rank() {
           <Spacing size={12} />
           <TextField
             variant="box"
+            labelOption="sustain"
             label="친구 코드"
             placeholder="FS1.로 시작하는 코드"
             value={codeInput}

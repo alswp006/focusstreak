@@ -267,6 +267,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - heal-1-01: 진입점 배선 복구 — 라우터 + ScreenScaffold 셸 + FloatingTabBar + 전 라우트 플레이스홀더 (files: .gitignore, src/main.tsx, src/App.tsx, src/components/FloatingTabBar.tsx, src/lib/types.ts, src/pages/Home.tsx, src/pages/Calendar.tsx, src/pages/History.tsx, src/pages/Report.tsx, src/pages/More.tsx, src/pages/Badges.tsx, src/pages/Rank.tsx, src/pages/Settings.tsx)
 - heal-1-02: 공용 스토리지·도메인 레이어 — localStorage 어댑터와 KST 날짜/집계 순수 함수 (files: src/lib/storage.ts, src/lib/datetime.ts, src/lib/domain.ts)
 - heal-1-03: S1 타이머 홈 화면 실구현 (플레이스홀더 대체) (files: src/pages/Home.tsx, src/components/CircularProgress.tsx)
+- imp-20261009-01: [개선] 갈 수 없는 화면 6개에 진입점 만들기 (files: src/pages/Home.tsx, src/pages/Badges.tsx, src/pages/Calendar.tsx)
 
 ## Available exports from existing files
 // src/App.tsx
